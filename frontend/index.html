@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GardenAI - Intelligent Garden Planner</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand" style="cursor: pointer;" onclick="switchTab('design-tab')">
+                <i class="fa-solid fa-seedling brand-icon"></i>
+                <div class="brand-text">
+                    <h2>GardenAI</h2>
+                    <span>Intelligent Garden Planner</span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item" data-tab="dashboard-tab">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </button>
+                <button class="nav-item" data-tab="agents-tab">
+                    <i class="fa-solid fa-users-gear"></i> Expert Hub
+                </button>
+                <button class="nav-item" data-tab="calendar-tab">
+                    <i class="fa-solid fa-calendar-days"></i> Calendar & Timeline
+                </button>
+                <button class="nav-item" data-tab="settings-tab">
+                    <i class="fa-solid fa-sliders"></i> Settings
+                </button>
+            </nav>
+            
+            <!-- Dynamic Sidebar Garden Parameters Form & Metrics -->
+            <div class="sidebar-form-card" id="sidebar-parameters-card">
+                <h3><i class="fa-solid fa-sliders"></i> Garden Setup</h3>
+                <form id="design-form" onsubmit="event.preventDefault(); submitDesign();">
+                    <div class="form-group">
+                        <label for="input-zip">ZIP Code</label>
+                        <input type="text" id="input-zip" value="48195" required pattern="\d{5}">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="input-height" id="lbl-height-unit">Length (ft)</label>
+                            <input type="number" id="input-height" value="30" min="5" max="1000" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="input-width" id="lbl-width-unit">Width (ft)</label>
+                            <input type="number" id="input-width" value="20" min="5" max="1000" required>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top: -6px; margin-bottom: 10px;">
+                        <span id="fencing-perimeter-display" style="font-size: 11px; font-weight: 700; color: var(--accent-emerald);">
+                            Fencing Perimeter: 100 ft
+                        </span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="select-soil">Soil Type</label>
+                            <select id="select-soil">
+                                <option value="Loam">Loamy Soil (Ideal)</option>
+                                <option value="Clay">Clay Soil (Dense)</option>
+                                <option value="Sand">Sandy Soil (Dry)</option>
+                                <option value="Silt">Silt Soil (Moist)</option>
+                                <option value="Peat">Peaty Soil (Acidic)</option>
+                                <option value="Chalky">Chalky Soil (Alkaline)</option>
+                                <option value="Rocky">Rocky Soil (Coarse)</option>
+                                <option value="Saline">Saline Soil (Salty)</option>
+                                <option value="Unknown">Unknown</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="select-sun">Sun Exposure</label>
+                            <select id="select-sun">
+                                <option value="Full">Full Sun</option>
+                                <option value="Partial">Partial Shade</option>
+                                <option value="Shade">Full Shade</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="chk-distribute-layout" style="width: auto; margin: 0; cursor: pointer;">
+                        <label for="chk-distribute-layout" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Distribute plants evenly (space out)</label>
+                    </div>
+                    <div style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; position: relative;">
+                        <h4 style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.5px;">Planting Methodologies</h4>
+                        <div class="methodologies-checklist" style="display: flex; flex-direction: column; gap: 6px;">
+                            <div class="method-checkbox-item" data-method="Miyawaki" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
+                                <input type="checkbox" id="chk-method-miyawaki" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
+                                <label for="chk-method-miyawaki" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                    Miyawaki Pocket Forest
+                                </label>
+                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Miyawaki" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
+                            </div>
+                            <div class="method-checkbox-item" data-method="Syntropic" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
+                                <input type="checkbox" id="chk-method-syntropic" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
+                                <label for="chk-method-syntropic" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                    Syntropic Agroforestry
+                                </label>
+                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Syntropic" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
+                            </div>
+                            <div class="method-checkbox-item" data-method="FoodForest" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
+                                <input type="checkbox" id="chk-method-foodforest" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
+                                <label for="chk-method-foodforest" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                    Food Forest (Permaculture)
+                                </label>
+                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="FoodForest" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
+                            </div>
+                            <div class="method-checkbox-item" data-method="Nucleation" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
+                                <input type="checkbox" id="chk-method-nucleation" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
+                                <label for="chk-method-nucleation" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                    Applied Nucleation
+                                </label>
+                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Nucleation" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
+                            </div>
+                            <div class="method-checkbox-item" data-method="DirectSeeding" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
+                                <input type="checkbox" id="chk-method-directseeding" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
+                                <label for="chk-method-directseeding" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                    Direct Seeding
+                                </label>
+                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="DirectSeeding" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
+                            </div>
+                            <div class="method-checkbox-item" data-method="Block" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
+                                <input type="checkbox" id="chk-method-block" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
+                                <label for="chk-method-block" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                    Block Plantation (Conventional)
+                                </label>
+                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Block" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="sidebar-metrics-list" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 14px;">
+                    <h4 style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Design Metrics</h4>
+                    <ul class="summary-list-sidebar" style="list-style: none; display: flex; flex-direction: column; gap: 8px; padding-left: 0;">
+                        <li style="display: flex; justify-content: space-between; font-size: 11px;"><span style="color: var(--text-secondary);">Total Area:</span> <strong id="lbl-total-area" style="color: var(--text-primary);">600 sq ft</strong></li>
+                        <li style="display: flex; justify-content: space-between; font-size: 11px;"><span style="color: var(--text-secondary);">Planting Area:</span> <strong id="lbl-planting-area" style="color: var(--text-primary);">480 sq ft</strong></li>
+                        <li style="display: flex; justify-content: space-between; font-size: 11px;"><span style="color: var(--text-secondary);">Paths Area:</span> <strong id="lbl-paths-area" style="color: var(--text-primary);">120 sq ft</strong></li>
+                        <li style="display: flex; justify-content: space-between; font-size: 11px;"><span style="color: var(--text-secondary);">Plants Placed:</span> <strong id="lbl-placed-count" style="color: var(--accent-emerald);">0</strong></li>
+                        <li style="display: flex; justify-content: space-between; font-size: 11px;"><span style="color: var(--text-secondary);">Est. Yield:</span> <strong id="lbl-yield" style="color: var(--accent-emerald);">0 lbs</strong></li>
+                        <li style="display: flex; justify-content: space-between; font-size: 11px;"><span style="color: var(--text-secondary);">Water Needs:</span> <strong id="lbl-water-needs" style="color: var(--text-primary);">Low</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Window Container -->
+        <main class="main-content">
+            <!-- Header section -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h1 id="tab-title">Dashboard</h1>
+                    <span id="tab-subtitle">Welcome back! Here is your garden status.</span>
+                </div>
+                <div class="header-status">
+                    <div class="status-widget">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <div>
+                            <span class="widget-label">Location</span>
+                            <span class="widget-value" id="hdr-zip">48195 (Ann Arbor, MI)</span>
+                        </div>
+                    </div>
+                    <div class="status-widget">
+                        <i class="fa-solid fa-temperature-half"></i>
+                        <div>
+                            <span class="widget-label">Weather</span>
+                            <span class="widget-value">62°F Partly Cloudy</span>
+                        </div>
+                    </div>
+                    <div class="status-widget">
+                        <i class="fa-solid fa-mountain-sun"></i>
+                        <div>
+                            <span class="widget-label">Zone</span>
+                            <span class="widget-value" id="hdr-zone">Zone 6a</span>
+                        </div>
+                    </div>
+                    <div class="user-profile">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=GardenAI" alt="Avatar" class="avatar">
+                        <div class="user-info">
+                            <span class="user-name">Brett Buchanan</span>
+                            <span class="user-zone">Zone 6a</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <section class="content-body">
+                
+                <!-- TAB 1: DASHBOARD -->
+                <div class="tab-pane" id="dashboard-tab">
+                    <div class="dashboard-grid">
+                        <div class="card intro-card">
+                            <h3>The Future of Gardening is Intelligent</h3>
+                            <p>Design Smarter. Grow Better. Naturally. Use GardenAI to plan crop spacing, pair companion plants, avoid soil diseases, and construct dynamic timelines.</p>
+                            <button class="btn btn-primary" onclick="switchTab('design-tab')">Start Designing <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                        <div class="card stat-card">
+                            <h3>Quick Metrics</h3>
+                            <div class="metrics-grid">
+                                <div class="metric-item">
+                                    <span class="metric-num" id="stat-total-plants">0</span>
+                                    <span class="metric-label">Plants Selected</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-num" id="stat-companions">0</span>
+                                    <span class="metric-label">Companion Pairs</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-num" id="stat-warnings">0</span>
+                                    <span class="metric-label">Antagonist Alerts</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card news-card">
+                            <h3>Ecology Log</h3>
+                            <ul class="eco-log">
+                                <li><i class="fa-solid fa-circle-check text-success"></i> Database connected containing 197 crops.</li>
+                                <li><i class="fa-solid fa-circle-check text-success"></i> 844 companion links loaded from University Extensions.</li>
+                                <li><i class="fa-solid fa-lightbulb text-warning"></i> Tip: Nightshades (Tomatoes, Peppers) require high calcium. Avoid planting next to Potatoes.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: GARDEN DESIGN -->
+                <div class="tab-pane active" id="design-tab">
+                    
+
+
+                    <!-- Large Standalone Search Bar -->
+                    <div class="card search-bar-large-card">
+                        <label for="crop-search"><i class="fa-solid fa-magnifying-glass"></i> Search and Add Desired Crops</label>
+                        <div class="search-container" style="display: flex; gap: 10px; width: 100%;">
+                            <div style="flex: 1; position: relative;">
+                                <input type="text" id="crop-search" placeholder="Type to search and add crops to your garden layout (e.g., Cherry Tomato, Sweet Basil, French Marigold, Apple Tree)..." style="width: 100%;">
+                                <div id="crop-suggestions" class="suggestions-box"></div>
+                            </div>
+                            <button type="button" class="btn btn-success" id="btn-submit-design" style="flex-shrink: 0; padding: 0 24px; height: 42px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; margin-top: 0; white-space: nowrap; border-radius: var(--radius-md);">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Design My Garden
+                            </button>
+                        </div>
+                        
+                        <!-- Multi-Select Presets Configuration -->
+                        <div class="presets-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+                            <label style="margin-bottom: 4px;">Target Preset Allocation Plans</label>
+                            <p class="section-desc" style="margin-bottom: 10px; font-size: 11px;">Select multiple presets and specify the garden capacity percentage to allocate to each. Proportions will adjust automatically.</p>
+                            
+                            <div class="presets-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px;">
+                                <!-- Preset 1 -->
+                                <div class="preset-card" data-preset="pizza" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍕 Pizza Sauce</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Preset 2 -->
+                                <div class="preset-card" data-preset="salad" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🥗 Salad Greens</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 3 -->
+                                <div class="preset-card" data-preset="berry" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍓 Berry Patch</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 4 -->
+                                <div class="preset-card" data-preset="stew" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍲 Stew Staples</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 5 -->
+                                <div class="preset-card" data-preset="orchard" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍎 Fruit Orchard</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 6 -->
+                                <div class="preset-card" data-preset="salsa" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🌶️ Salsa Garden</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 7 -->
+                                <div class="preset-card" data-preset="wellness" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🩹 Wellness Herb</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 8 -->
+                                <div class="preset-card" data-preset="pollinator" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🦋 Pollinator Haven</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 9 -->
+                                <div class="preset-card" data-preset="threesisters" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🌽 Three Sisters</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 10 -->
+                                <div class="preset-card" data-preset="supergreens" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🥬 Super Greens</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 11 -->
+                                <div class="preset-card" data-preset="covercrop" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍀 Cover Crops</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Preset 12 -->
+                                <div class="preset-card" data-preset="nitrofix" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🧪 Nitrogen Fix</span>
+                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                    </div>
+                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button type="button" id="btn-apply-selected-presets" class="btn" style="flex: 1; padding: 0 12px; font-size: 11px; height: 28px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 600; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Apply Selected Plans
+                                </button>
+                                <button type="button" id="btn-normalize-presets" class="btn" style="padding: 0 12px; font-size: 11px; height: 28px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 600; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <i class="fa-solid fa-scale-balanced"></i> Auto-Balance %
+                                </button>
+                            </div>
+                            <div id="presets-error-msg" style="display: none; color: #f59e0b; font-size: 10px; margin-top: 6px; font-weight: 600;"></div>
+                        </div>
+
+                        <div id="selected-crops" class="tag-container"></div>
+                    </div>
+
+                    <div class="design-layout-grid">
+
+                        <!-- Interactive Layout Panel -->
+                        <div class="card layout-panel">
+                            <div class="panel-header">
+                                <h3>Plot Layout Preview</h3>
+                                <div class="layout-toggle">
+                                    <button class="toggle-btn" id="btn-edit-mode" style="margin-right: 12px; border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout</button>
+                                    <button class="toggle-btn active" id="btn-3d-view">3D View</button>
+                                    <button class="toggle-btn" id="btn-layout-view">Layout</button>
+                                </div>
+                            </div>
+                            <div class="layout-canvas-container">
+                                <!-- Dynamic Compass Rose Widget -->
+                                <div class="compass-widget" title="Garden Orientation (North is North)">
+                                    <div class="compass-dial">
+                                        <span class="cardinal north">N</span>
+                                        <span class="cardinal south">S</span>
+                                        <span class="cardinal east">E</span>
+                                        <span class="cardinal west">W</span>
+                                        <div class="compass-needle" id="compass-needle"></div>
+                                    </div>
+                                </div>
+                                <div class="cad-viewport hidden" id="cad-viewport-container">
+                                    <div class="y-ruler-container" id="y-ruler-pane">
+                                        <div id="y-ruler" style="display: flex; flex-direction: column;"></div>
+                                    </div>
+                                    <div class="layout-canvas-scroll-pane" id="layout-scroll-pane">
+                                        <div id="garden-grid" class="garden-grid-canvas">
+                                            <!-- Dynamic Grid Cells go here -->
+                                        </div>
+                                    </div>
+                                    <div class="ruler-origin"></div>
+                                    <div class="x-ruler-container" id="x-ruler-pane">
+                                        <div id="x-ruler" style="display: flex; flex-direction: row;"></div>
+                                    </div>
+                                </div>
+                                <div id="3d-canvas-container" style="position: relative; width: 100%; height: 500px; border-radius: var(--radius-md); overflow: hidden;">
+                                    <!-- Dynamic WebGL canvas goes here -->
+                                    <!-- Floating 3D Tooltip -->
+                                    <div id="3d-tooltip" style="position: absolute; display: none; background: rgba(12, 16, 15, 0.94); border: 1px solid var(--accent-emerald); border-radius: var(--radius-md); padding: 10px 14px; font-size: 11px; z-index: 1000; pointer-events: none; box-shadow: var(--shadow-lg); width: max-content; max-width: 240px; color: var(--text-primary); transition: opacity 0.15s;">
+                                        <strong id="tooltip-name" style="color: var(--accent-emerald); display: block; font-size: 12px; margin-bottom: 2px;">Plant</strong>
+                                        <span id="tooltip-meta" style="color: var(--text-secondary); font-size: 10px; display: block; margin-bottom: 4px; font-weight: 600;">Type</span>
+                                        <p id="tooltip-desc" style="margin: 0; line-height: 1.35; color: rgba(255,255,255,0.75);">Description</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="layout-footer">
+                                <span class="grid-dimension" id="grid-dim-text">20 ft x 30 ft (600 sq ft)</span>
+                                <div class="legend">
+                                    <span class="legend-item"><span class="legend-color path"></span> Path</span>
+                                    <span class="legend-item"><span class="legend-color crop"></span> Planted</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Capacity Meter + Recommendations Panel -->
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <!-- Compact Capacity Meter Card -->
+                            <div class="card" id="capacity-meter" style="padding: 12px 14px; margin-bottom: 0; box-sizing: border-box;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; margin-bottom: 6px;">
+                                    <span style="color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Space Allocated</span>
+                                    <span id="capacity-allocated-pct" style="color: var(--accent-emerald);">0%</span>
+                                </div>
+                                <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; margin-bottom: 6px; position: relative;">
+                                    <div id="capacity-fill" style="width: 0%; height: 100%; background: var(--accent-emerald); border-radius: 3px; transition: width 0.3s ease;"></div>
+                                </div>
+                                <div id="capacity-status-text" style="font-size: 10px; color: var(--text-secondary); text-align: right; font-weight: 600;">0 / 0 sq ft allocated</div>
+                            </div>
+
+                            <!-- Recommendations Column (Replaces old Stats panel) -->
+                            <div class="card recommendations-panel" style="margin-top: 0;">
+                            <h3>Compatibility Recommendations</h3>
+                            
+                            <div class="rec-section">
+                                <h4><i class="fa-solid fa-heart text-success"></i> Companions</h4>
+                                <div id="companion-list" class="mini-recs-list">
+                                    <p class="placeholder-text">Add crops and run design.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="rec-section">
+                                <h4><i class="fa-solid fa-triangle-exclamation text-danger"></i> Avoid Nearby</h4>
+                                <div id="antagonist-list" class="tag-container-small">
+                                    <p class="placeholder-text">Everything compatible.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="rec-section">
+                                <h4><i class="fa-solid fa-circle-plus text-primary"></i> Suggestions</h4>
+                                <div id="suggestions-list" class="tag-container-small">
+                                    <p class="placeholder-text">No suggestions.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="rec-section">
+                                <h4><i class="fa-solid fa-brain text-purple"></i> AI Advice</h4>
+                                <div id="ai-advice-content" class="markdown-body mini-ai-box">
+                                    <p class="placeholder-text">Design to generate advice.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: EXPERT HUB (MULTI-AGENT DIAGNOSTICS) -->
+            <div class="tab-pane" id="agents-tab">
+                <div class="card intro-card" style="margin-bottom: 20px;">
+                    <h3>Ecosystem Expert Hub</h3>
+                    <p class="section-desc">Consult a collaborative panel of agricultural specialist agents. Ask queries regarding plant health, soil optimization, micro-climate profiles, or insect management, and view the experts discuss root causes in real-time.</p>
+                </div>
+
+                <div class="agents-grid-layout" style="display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start;">
+                    <!-- Left Column: Expert Roster Checklist -->
+                    <div class="card roster-card" style="margin-bottom: 0; padding: 20px;">
+                        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 15px; font-weight: 700; letter-spacing: 0.5px;">Specialist Panel Roster</h4>
+                        
+                        <div class="roster-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Tomato Agent -->
+                            <div class="roster-item" data-agent="tomato" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; gap: 10px; cursor: pointer; transition: all 0.2s;">
+                                <div style="font-size: 24px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(239, 68, 68, 0.1); border-radius: var(--radius-sm); flex-shrink: 0;">🍅</div>
+                                <div style="flex-grow: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">Tomato Specialist</span>
+                                        <input type="checkbox" class="agent-toggle" data-agent="tomato" checked style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                    </div>
+                                    <span style="font-size: 9px; text-transform: uppercase; color: #ef4444; font-weight: 700; display: block; margin-bottom: 4px;">Horticulturist</span>
+                                    <p style="font-size: 10px; color: var(--text-secondary); margin: 0; line-height: 1.35;">Diagnoses nightshade leaf spots, wilting, and Blossom-End Rot.</p>
+                                </div>
+                            </div>
+
+                            <!-- Soil Agent -->
+                            <div class="roster-item" data-agent="soil" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; gap: 10px; cursor: pointer; transition: all 0.2s;">
+                                <div style="font-size: 24px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(16, 185, 129, 0.1); border-radius: var(--radius-sm); flex-shrink: 0;">🧪</div>
+                                <div style="flex-grow: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">Soil Scientist</span>
+                                        <input type="checkbox" class="agent-toggle" data-agent="soil" checked style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                    </div>
+                                    <span style="font-size: 9px; text-transform: uppercase; color: #10b981; font-weight: 700; display: block; margin-bottom: 4px;">Pedologist</span>
+                                    <p style="font-size: 10px; color: var(--text-secondary); margin: 0; line-height: 1.35;">Analyzes clay drainage limits, sand washouts, and compost additions.</p>
+                                </div>
+                            </div>
+
+                            <!-- Pest Agent -->
+                            <div class="roster-item" data-agent="pest" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; gap: 10px; cursor: pointer; transition: all 0.2s;">
+                                <div style="font-size: 24px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(245, 158, 11, 0.1); border-radius: var(--radius-sm); flex-shrink: 0;">🐛</div>
+                                <div style="flex-grow: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">Pest Entomologist</span>
+                                        <input type="checkbox" class="agent-toggle" data-agent="pest" checked style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                    </div>
+                                    <span style="font-size: 9px; text-transform: uppercase; color: #f59e0b; font-weight: 700; display: block; margin-bottom: 4px;">Entomologist</span>
+                                    <p style="font-size: 10px; color: var(--text-secondary); margin: 0; line-height: 1.35;">Identifies insect damage (aphids, mites, hornworms) and organic IPMs.</p>
+                                </div>
+                            </div>
+
+                            <!-- Regen Agent -->
+                            <div class="roster-item" data-agent="regen" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; gap: 10px; cursor: pointer; transition: all 0.2s;">
+                                <div style="font-size: 24px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(59, 130, 246, 0.1); border-radius: var(--radius-sm); flex-shrink: 0;">🌾</div>
+                                <div style="flex-grow: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">Regen Agronomist</span>
+                                        <input type="checkbox" class="agent-toggle" data-agent="regen" checked style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                    </div>
+                                    <span style="font-size: 9px; text-transform: uppercase; color: #3b82f6; font-weight: 700; display: block; margin-bottom: 4px;">Agroecologist</span>
+                                    <p style="font-size: 10px; color: var(--text-secondary); margin: 0; line-height: 1.35;">Coordinates organic crop cover covers, nitrogen fixing, and mycelium.</p>
+                                </div>
+                            </div>
+
+                            <!-- Climate Agent -->
+                            <div class="roster-item" data-agent="climate" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; gap: 10px; cursor: pointer; transition: all 0.2s;">
+                                <div style="font-size: 24px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(168, 85, 247, 0.1); border-radius: var(--radius-sm); flex-shrink: 0;">🌦️</div>
+                                <div style="flex-grow: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">Climate Advisor</span>
+                                        <input type="checkbox" class="agent-toggle" data-agent="climate" checked style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                    </div>
+                                    <span style="font-size: 9px; text-transform: uppercase; color: #a855f7; font-weight: 700; display: block; margin-bottom: 4px;">Biometeorologist</span>
+                                    <p style="font-size: 10px; color: var(--text-secondary); margin: 0; line-height: 1.35;">Tracks hardiness zone frost boundaries and microclimate sun impacts.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Interactive Diagnostic Terminal -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Chat Terminal Panel -->
+                        <div class="card chat-terminal-card" style="margin-bottom: 0; display: flex; flex-direction: column; height: 400px; padding: 0;">
+                            <!-- Header -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.01);">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-comments" style="color: var(--accent-emerald);"></i> Collaborative Expert Discussion
+                                </span>
+                                <span style="font-size: 10px; color: var(--text-secondary); font-weight: 500;" id="diagnostic-active-count">5 Agents active</span>
+                            </div>
+
+                            <!-- Discussion Transcript Pane -->
+                            <div id="diagnostic-chat-pane" style="flex-grow: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth;">
+                                <!-- Welcome Message -->
+                                <div class="chat-message coordinator-bubble" style="display: flex; gap: 10px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--accent-emerald);">
+                                    <div style="font-size: 20px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(16, 185, 129, 0.1); border-radius: 50%; flex-shrink: 0;">🌱</div>
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+                                            <span style="font-size: 11px; font-weight: 700; color: var(--text-primary);">Lead Coordinator</span>
+                                            <span style="font-size: 8px; text-transform: uppercase; background: var(--accent-emerald); color: #121918; padding: 1px 4px; border-radius: 2px; font-weight: 700;">Host</span>
+                                        </div>
+                                        <p style="font-size: 11px; color: var(--text-secondary); margin: 0; line-height: 1.45;">Welcome to the Multi-Agent Expert Diagnostics Hub! Ask a question regarding plant health, nutrient balances, soil structure, or insect issues. The specialist panel will analyze the details in real-time.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Query Console -->
+                        <div class="card" style="margin-bottom: 0; padding: 16px;">
+                            <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Presets:</span>
+                                <button type="button" class="preset-chip" onclick="askExpertPreset('Why are my tomato leaves yellowing?')">🍅 Yellow Leaves</button>
+                                <button type="button" class="preset-chip" onclick="askExpertPreset('How can I improve drainage in clay soil?')">🧪 Clay Soil Fix</button>
+                                <button type="button" class="preset-chip" onclick="askExpertPreset('What organic solutions control aphid pests?')">🐛 Aphid Organic IPM</button>
+                                <button type="button" class="preset-chip" onclick="askExpertPreset('Frost warning cover crop guidelines for cold winter zones?')">🌦️ Frost Cover Crops</button>
+                            </div>
+
+                            <form id="diagnostics-form" style="display: flex; gap: 10px;">
+                                <input type="text" id="input-diagnostic-query" placeholder="Ask the expert panel a diagnostic or agricultural question..." required style="flex-grow: 1; font-size: 13px; height: 38px; padding: 0 14px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                                <button type="submit" class="btn btn-success" style="height: 38px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 18px; border-radius: var(--radius-md); white-space: nowrap;">
+                                    <i class="fa-solid fa-magnifying-glass-chart"></i> Consult Panel
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Final Diagnosis Synthesizer Card -->
+                        <div class="card" id="final-diagnosis-card" style="display: none; padding: 18px; border: 1px solid var(--accent-emerald); background: rgba(16, 185, 129, 0.02); box-sizing: border-box;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                                <span style="font-size: 12px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-list-check" style="color: var(--accent-emerald);"></i> Synthesized Diagnosis Report
+                                </span>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <span style="font-size: 10px; color: var(--text-secondary);">Confidence:</span>
+                                    <span id="diagnostic-confidence-badge" style="font-size: 9px; text-transform: uppercase; background: var(--accent-emerald); color: #121918; padding: 2px 6px; border-radius: var(--radius-sm); font-weight: 700;">High</span>
+                                </div>
+                            </div>
+                            <div id="diagnostic-synthesis-content" class="markdown-body" style="font-size: 11px; line-height: 1.5; color: var(--text-secondary);">
+                                <!-- Synthesis Content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: CALENDAR & TIMELINE -->
+            <div class="tab-pane" id="calendar-tab">
+                    <div class="card calendar-card">
+                        <h3>Garden Calendar & Timeline</h3>
+                        <p class="section-desc">Your personalized planting, care, and harvesting timeline mapped out by month.</p>
+                        
+                        <div class="timeline-container">
+                            <div class="timeline-header">
+                                <div class="timeline-row">
+                                    <div class="timeline-cell name-col">Crop</div>
+                                    <div class="timeline-cell">Jan</div>
+                                    <div class="timeline-cell">Feb</div>
+                                    <div class="timeline-cell">Mar</div>
+                                    <div class="timeline-cell">Apr</div>
+                                    <div class="timeline-cell">May</div>
+                                    <div class="timeline-cell">Jun</div>
+                                    <div class="timeline-cell">Jul</div>
+                                    <div class="timeline-cell">Aug</div>
+                                    <div class="timeline-cell">Sep</div>
+                                    <div class="timeline-cell">Oct</div>
+                                    <div class="timeline-cell">Nov</div>
+                                    <div class="timeline-cell">Dec</div>
+                                </div>
+                            </div>
+                            <div id="timeline-body" class="timeline-body">
+                                <p class="placeholder-text text-center py-4">Add crops and generate a design to display your planting calendar.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-legend">
+                            <span class="legend-item"><span class="legend-color sowing"></span> Sowing / Start Seeds</span>
+                            <span class="legend-item"><span class="legend-color growing"></span> Growing</span>
+                            <span class="legend-item"><span class="legend-color blooming"></span> Blooming / Flowering</span>
+                            <span class="legend-item"><span class="legend-color harvesting"></span> Harvesting</span>
+                            <span class="legend-item"><span class="legend-color soilcare"></span> Soil Care</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: SETTINGS -->
+                <div class="tab-pane" id="settings-tab">
+                    <div class="card settings-card">
+                        <h3>Application Settings</h3>
+                        <div class="settings-group">
+                            <h4>Gemini AI Connection</h4>
+                            <div class="form-group">
+                                <label>Model Choice</label>
+                                <select id="settings-ai-model">
+                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Medium / Fast)</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (High Intelligence)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="settings-group">
+                            <h4>Ecological Rules</h4>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="chk-companion-priority" checked>
+                                <label for="chk-companion-priority">Prioritize companion plant positioning in grid layout</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="chk-native-attractors" checked>
+                                <label for="chk-native-attractors">Auto-include native flowers at plot corners to attract insects</label>
+                            </div>
+                        </div>
+                        <div class="settings-group">
+                            <h4>Unit Preferences</h4>
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 1; margin-right: 12px;">
+                                    <label>Dimensions Unit</label>
+                                    <select id="settings-dim-unit">
+                                        <option value="ft">Feet (ft)</option>
+                                        <option value="m">Meters (m)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label>Weight Unit</label>
+                                    <select id="settings-weight-unit">
+                                        <option value="lbs">Pounds (lbs)</option>
+                                        <option value="kg">Kilograms (kg)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <!-- Floating detail description popover -->
+    <div id="methodology-popover" class="glass-panel" style="
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        width: 265px;
+        padding: 14px;
+        border: 1px solid var(--accent-emerald);
+        border-radius: var(--radius-md);
+        background: rgba(13, 20, 19, 0.98);
+        box-shadow: var(--shadow-lg);
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none; /* Let hover events pass through when transitioning */
+    ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong id="methodology-popover-title" style="color: var(--text-primary); font-size: 12px;">Methodology Details</strong>
+            <i class="fa-solid fa-xmark" id="methodology-popover-close" style="cursor: pointer; color: var(--text-secondary); font-size: 12px; padding: 2px; pointer-events: auto;"></i>
+        </div>
+        <span id="methodology-popover-text">Hover or click a planting methodology to view details.</span>
+    </div>
+
+    <!-- Floating preset details popover -->
+    <div id="presets-popover" class="glass-panel" style="
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        width: 265px;
+        padding: 14px;
+        border: 1px solid var(--accent-emerald);
+        border-radius: var(--radius-md);
+        background: rgba(13, 20, 19, 0.98);
+        box-shadow: var(--shadow-lg);
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none; /* Let hover events pass through when transitioning */
+    ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong id="presets-popover-title" style="color: var(--text-primary); font-size: 12px;">Preset Plan Details</strong>
+            <i class="fa-solid fa-xmark" id="presets-popover-close" style="cursor: pointer; color: var(--text-secondary); font-size: 12px; padding: 2px; pointer-events: auto;"></i>
+        </div>
+        <p id="presets-popover-desc" style="margin-bottom: 8px; font-size: 10px; color: var(--text-secondary);"></p>
+        <strong style="color: var(--text-primary); font-size: 10px; display: block; margin-bottom: 4px;">Included Crops & Ratios:</strong>
+        <ul id="presets-popover-plants" style="padding-left: 12px; margin: 0; font-size: 10px; list-style: square;"></ul>
+    </div>
+
+    <!-- Script imports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
