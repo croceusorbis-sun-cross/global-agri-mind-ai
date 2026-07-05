@@ -2311,6 +2311,7 @@ function renderCalendarTimeline() {
 
 // ==================== THREE.JS 3D LAYOUT SYSTEM ====================
 let scene3d, camera3d, renderer3d, gardenGroup3d;
+let currentRenderMode = 'auto';
 let raycaster3d, mouse3d;
 let lastHoveredGroup = null;
 let isDragging3d = false;
@@ -3416,13 +3417,160 @@ function build3DPlantModel(plant, diameter) {
     return plantGroup;
 }
 
-function update3DLayout(width, height, gridArray) {
-    if (!scene3d || !gardenGroup3d) return;
+let plantTextureCache = new Map();
 
-    // Clear previous elements
+function disposeNode(node) {
+    if (node.geometry) node.geometry.dispose();
+    if (node.material) {
+        if (Array.isArray(node.material)) {
+            node.material.forEach(m => {
+                if (m.map) m.map.dispose();
+                m.dispose();
+            });
+        } else {
+            if (node.material.map) node.material.map.dispose();
+            node.material.dispose();
+        }
+    }
+}
+
+function clearGarden3D() {
+    if (!gardenGroup3d) return;
+    gardenGroup3d.traverse(node => {
+        if (node instanceof THREE.Mesh) {
+            disposeNode(node);
+        }
+    });
+    // Dispose textures to free GPU memory
+    plantTextureCache.forEach(texture => {
+        texture.dispose();
+    });
+    plantTextureCache.clear();
+    
     while (gardenGroup3d.children.length > 0) {
         gardenGroup3d.remove(gardenGroup3d.children[0]);
     }
+}
+
+function getPlantEmoji(plantName) {
+    const name = plantName.toLowerCase();
+    if (name.includes("tomato")) return "🍅";
+    if (name.includes("basil")) return "🌿";
+    if (name.includes("oregano")) return "🍃";
+    if (name.includes("thyme")) return "🌱";
+    if (name.includes("rosemary")) return "🌿";
+    if (name.includes("mint")) return "🌱";
+    if (name.includes("sage")) return "🌱";
+    if (name.includes("lavender")) return "🪻";
+    if (name.includes("marigold")) return "🌼";
+    if (name.includes("sunflower")) return "🌻";
+    if (name.includes("corn")) return "🌽";
+    if (name.includes("bean") || name.includes("pea")) return "🫛";
+    if (name.includes("squash") || name.includes("pumpkin") || name.includes("zucchini")) return "🎃";
+    if (name.includes("carrot")) return "🥕";
+    if (name.includes("potato")) return "🥔";
+    if (name.includes("onion") || name.includes("garlic")) return "🧅";
+    if (name.includes("lettuce") || name.includes("salad") || name.includes("spinach") || name.includes("kale") || name.includes("chard")) return "🥬";
+    if (name.includes("pepper") || name.includes("chili") || name.includes("jalapeno")) return "🫑";
+    if (name.includes("apple")) return "🍎";
+    if (name.includes("peach")) return "🍑";
+    if (name.includes("pear")) return "🍐";
+    if (name.includes("cherry")) return "🍒";
+    if (name.includes("plum")) return "🍑";
+    if (name.includes("orange") || name.includes("citrus") || name.includes("lemon")) return "🍊";
+    if (name.includes("strawberry") || name.includes("berry") || name.includes("raspberry") || name.includes("blackberry") || name.includes("blueberry")) return "🍓";
+    if (name.includes("grape")) return "🍇";
+    if (name.includes("melon") || name.includes("watermelon")) return "🍉";
+    if (name.includes("tree")) return "🌳";
+    if (name.includes("shrub") || name.includes("bush")) return "🌿";
+    if (name.includes("grass") || name.includes("clover") || name.includes("alfalfa") || name.includes("vetch")) return "🍀";
+    return "🌱";
+}
+
+function createPlantTextureCanvas(plantName, emoji, colors) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Draw background disk
+    ctx.fillStyle = colors.background || '#142015';
+    ctx.beginPath();
+    ctx.arc(128, 128, 120, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw border ring
+    ctx.strokeStyle = colors.border || '#10b981';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(128, 128, 120, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Draw Emoji symbol in center
+    ctx.font = '100px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 128, 110);
+
+    // Draw variety name text at the bottom half
+    ctx.font = 'bold 22px Outfit, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(plantName.substring(0, 18), 128, 200);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    
+    return texture;
+}
+
+function buildSimplifiedConeModel(plant, diameter) {
+    const coneGroup = new THREE.Group();
+    const colors = getPlantColor(plant.id);
+    
+    // Determine radii and heights (converted to feet / grid units)
+    const maxRad = plant.max_radius ? parseFloat(plant.max_radius) : diameter / 2;
+    const minRad = plant.min_radius ? parseFloat(plant.min_radius) : maxRad * 0.25;
+    const height = plant.mature_height ? parseFloat(plant.mature_height) : 3.0;
+
+    // Cylinder: CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded)
+    const coneGeo = new THREE.CylinderGeometry(maxRad, minRad, height, 16);
+    
+    // Materials
+    const sideMat = new THREE.MeshStandardMaterial({
+        color: colors.border,
+        transparent: true,
+        opacity: 0.6,
+        roughness: 0.8,
+        side: THREE.DoubleSide
+    });
+
+    const textureCacheKey = `${plant.id}_${colors.border}_${colors.background}`;
+    if (!plantTextureCache.has(textureCacheKey)) {
+        const emoji = getPlantEmoji(plant.name);
+        const texture = createPlantTextureCanvas(plant.name, emoji, colors);
+        plantTextureCache.set(textureCacheKey, texture);
+    }
+    const canvasTexture = plantTextureCache.get(textureCacheKey);
+    
+    const topCapMat = new THREE.MeshStandardMaterial({
+        map: canvasTexture,
+        roughness: 0.5
+    });
+
+    const materials = [sideMat, topCapMat, sideMat];
+    const coneMesh = new THREE.Mesh(coneGeo, materials);
+    
+    coneMesh.position.y = height / 2;
+    coneGroup.add(coneMesh);
+
+    return coneGroup;
+}
+
+function update3DLayout(width, height, gridArray) {
+    if (!scene3d || !gardenGroup3d) return;
+
+    // Clear previous elements with proper memory disposal
+    clearGarden3D();
 
     const cols = gridArray[0].length;
     const rows = gridArray.length;
@@ -3444,6 +3592,22 @@ function update3DLayout(width, height, gridArray) {
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.position.y = -0.1;
     gardenGroup3d.add(ground);
+
+    // Count total crops to determine auto-performance switch
+    let totalCropsCount = 0;
+    const preCountSet = new Set();
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const cellData = gridArray[r][c];
+            if (cellData && cellData.type === 'crop' && !preCountSet.has(cellData.instanceId)) {
+                preCountSet.add(cellData.instanceId);
+                totalCropsCount++;
+            }
+        }
+    }
+
+    const isSimplifiedMode = currentRenderMode === 'simplified' || 
+        (currentRenderMode === 'auto' && totalCropsCount > 500);
 
     const placedInstances = new Set();
 
@@ -3493,8 +3657,13 @@ function update3DLayout(width, height, gridArray) {
                     soil.position.set(0, 0.18, 0);
                     instanceGroup.add(soil);
 
-                    // 3. 3D plant object centered inside the raised bed
-                    const plant3d = build3DPlantModel(cellData.plant, diameter);
+                    // 3. Center the 3D plant model (realistic or simplified truncated cone) inside the raised bed
+                    let plant3d;
+                    if (isSimplifiedMode) {
+                        plant3d = buildSimplifiedConeModel(cellData.plant, diameter);
+                    } else {
+                        plant3d = build3DPlantModel(cellData.plant, diameter);
+                    }
                     plant3d.position.set(0, 0.20, 0);
                     instanceGroup.add(plant3d);
 
@@ -3574,6 +3743,15 @@ window.addEventListener('load', () => {
     if (distributeInput) {
         distributeInput.addEventListener('change', () => {
             if (selectedCrops.length > 0) submitDesign();
+        });
+    }
+
+    // Render Mode select change listener
+    const renderModeSelect = document.getElementById('select-render-mode');
+    if (renderModeSelect) {
+        renderModeSelect.addEventListener('change', (e) => {
+            currentRenderMode = e.target.value;
+            trigger3DRender();
         });
     }
 

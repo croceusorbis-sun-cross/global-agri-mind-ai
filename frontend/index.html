@@ -427,10 +427,15 @@
                         <div class="card layout-panel">
                             <div class="panel-header">
                                 <h3>Plot Layout Preview</h3>
-                                <div class="layout-toggle">
-                                    <button class="toggle-btn" id="btn-edit-mode" style="margin-right: 12px; border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout</button>
+                                <div class="layout-toggle" style="display: flex; gap: 8px; align-items: center;">
+                                    <button class="toggle-btn" id="btn-edit-mode" style="border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout</button>
                                     <button class="toggle-btn active" id="btn-3d-view">3D View</button>
                                     <button class="toggle-btn" id="btn-layout-view">Layout</button>
+                                    <select id="select-render-mode" style="background: #0d1413; border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                                        <option value="auto">Render: Auto</option>
+                                        <option value="simplified">Render: Simplified</option>
+                                        <option value="realistic">Render: Realistic</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="layout-canvas-container">
