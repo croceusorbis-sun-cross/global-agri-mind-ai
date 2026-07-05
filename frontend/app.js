@@ -999,16 +999,18 @@ function initMultiPresets() {
             }
             
             // Auto-balance all active/checked presets to sum to exactly 100%
-            const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
-            if (activeCards.length > 0) {
-                const basePct = Math.floor(100 / activeCards.length);
-                const remainder = 100 % activeCards.length;
-                activeCards.forEach((c, idx) => {
-                    const input = c.querySelector('.preset-pct');
-                    if (input) {
-                        input.value = basePct + (idx < remainder ? 1 : 0);
-                    }
-                });
+            if (isAutoBalanceEnabled) {
+                const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
+                if (activeCards.length > 0) {
+                    const basePct = Math.floor(100 / activeCards.length);
+                    const remainder = 100 % activeCards.length;
+                    activeCards.forEach((c, idx) => {
+                        const input = c.querySelector('.preset-pct');
+                        if (input) {
+                            input.value = basePct + (idx < remainder ? 1 : 0);
+                        }
+                    });
+                }
             }
         });
 
@@ -1047,14 +1049,31 @@ function initMultiPresets() {
     const btnNormalize = document.getElementById('btn-normalize-presets');
     if (btnNormalize) {
         btnNormalize.addEventListener('click', () => {
-            const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
-            if (activeCards.length === 0) return;
+            isAutoBalanceEnabled = !isAutoBalanceEnabled;
             
-            const balancedPct = Math.round(100 / activeCards.length);
-            activeCards.forEach(card => {
-                const input = card.querySelector('.preset-pct');
-                if (input) input.value = balancedPct;
-            });
+            // Toggle highlight visual style
+            if (isAutoBalanceEnabled) {
+                btnNormalize.style.background = 'rgba(16, 185, 129, 0.15)';
+                btnNormalize.style.borderColor = 'var(--accent-emerald)';
+                btnNormalize.style.color = 'var(--accent-emerald)';
+                
+                // Immediately auto-balance
+                const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
+                if (activeCards.length > 0) {
+                    const basePct = Math.floor(100 / activeCards.length);
+                    const remainder = 100 % activeCards.length;
+                    activeCards.forEach((c, idx) => {
+                        const input = c.querySelector('.preset-pct');
+                        if (input) {
+                            input.value = basePct + (idx < remainder ? 1 : 0);
+                        }
+                    });
+                }
+            } else {
+                btnNormalize.style.background = 'rgba(255, 255, 255, 0.02)';
+                btnNormalize.style.borderColor = 'var(--border-color)';
+                btnNormalize.style.color = 'var(--text-secondary)';
+            }
         });
     }
 
@@ -2360,8 +2379,9 @@ function renderCalendarTimeline() {
 
 // ==================== THREE.JS 3D LAYOUT SYSTEM ====================
 let scene3d, camera3d, renderer3d, gardenGroup3d;
-let currentRenderMode = 'auto';
 let current2DRenderId = 0;
+let current3DRenderId = 0;
+let isAutoBalanceEnabled = true;
 let raycaster3d, mouse3d;
 let lastHoveredGroup = null;
 let isDragging3d = false;
@@ -3435,7 +3455,10 @@ window.addEventListener('load', () => {
     let activeHoveredMethod = null;
     let isPopoverPinned = false;
 
+    let popoverTimeout = null;
+
     const showPopover = (methodKey, targetEl) => {
+        if (popoverTimeout) clearTimeout(popoverTimeout);
         const details = methodologyDetails[methodKey];
         if (popover && details && targetEl) {
             popoverTitle.textContent = details.title;
@@ -3470,34 +3493,41 @@ window.addEventListener('load', () => {
     };
 
     const hidePopover = () => {
-        if (popover && !isPopoverPinned) {
-            popover.style.opacity = '0';
-            popover.style.transform = 'translateX(-10px)';
-            // Hide after transition completes
-            setTimeout(() => {
-                if (!isPopoverPinned && popover.style.opacity === '0') {
-                    popover.style.display = 'none';
-                }
-            }, 200);
+        if (popoverTimeout) clearTimeout(popoverTimeout);
+        popoverTimeout = setTimeout(() => {
+            if (popover) {
+                popover.style.opacity = '0';
+                popover.style.transform = 'translateX(-10px)';
+                // Hide after transition completes
+                setTimeout(() => {
+                    if (popover.style.opacity === '0') {
+                        popover.style.display = 'none';
+                    }
+                }, 200);
+            }
             activeHoveredMethod = null;
-        }
+        }, 300); // 300ms delay to allow moving mouse over tooltip
     };
 
-    if (popoverClose) {
-        popoverClose.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isPopoverPinned = false;
+    if (popover) {
+        popover.addEventListener('mouseenter', () => {
+            if (popoverTimeout) clearTimeout(popoverTimeout);
+        });
+        popover.addEventListener('mouseleave', () => {
             hidePopover();
         });
     }
 
-    // Clicking anywhere else on the document closes a pinned popover
-    document.addEventListener('click', (e) => {
-        if (isPopoverPinned && popover && !popover.contains(e.target) && !e.target.closest('.method-checkbox-item')) {
-            isPopoverPinned = false;
-            hidePopover();
-        }
-    });
+    if (popoverClose) {
+        popoverClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (popoverTimeout) clearTimeout(popoverTimeout);
+            if (popover) {
+                popover.style.opacity = '0';
+                popover.style.display = 'none';
+            }
+        });
+    }
 
     methodCheckboxes.forEach(cb => {
         cb.addEventListener('change', (e) => {
@@ -3527,39 +3557,27 @@ window.addEventListener('load', () => {
             }
         });
 
-        // Hover events
+        // Hover & Click events on methodology card items
         const parentItem = cb.closest('.method-checkbox-item');
         if (parentItem) {
             const methodKey = parentItem.dataset.method;
 
             parentItem.addEventListener('mouseenter', () => {
-                if (isPopoverPinned) return;
                 activeHoveredMethod = methodKey;
                 showPopover(methodKey, parentItem);
             });
 
             parentItem.addEventListener('mouseleave', () => {
-                if (isPopoverPinned) return;
                 hidePopover();
             });
 
-            // Click triggers pinning
+            // Make clicking anywhere on the card toggle its checkbox (except on the checkbox itself or info trigger)
             parentItem.addEventListener('click', (e) => {
-                // Ignore if clicking the checkbox input directly
-                if (e.target === cb) return;
-                
-                e.stopPropagation();
-                activeHoveredMethod = methodKey;
-                isPopoverPinned = true;
-                showPopover(methodKey, parentItem);
-                
-                // Visual feedback: briefly flash border
-                if (popover) {
-                    popover.style.borderColor = '#10b981';
-                    setTimeout(() => {
-                        if (isPopoverPinned) popover.style.borderColor = 'var(--accent-emerald)';
-                    }, 300);
+                if (e.target === cb || e.target.classList.contains('method-info-trigger')) {
+                    return;
                 }
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change'));
             });
         }
     });

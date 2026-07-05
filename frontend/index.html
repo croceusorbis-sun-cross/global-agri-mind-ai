@@ -96,53 +96,7 @@
                         <input type="checkbox" id="chk-distribute-layout" style="width: auto; margin: 0; cursor: pointer;">
                         <label for="chk-distribute-layout" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Distribute plants evenly (space out)</label>
                     </div>
-                    <div style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; position: relative;">
-                        <h4 style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.5px;">Planting Methodologies</h4>
-                        <div class="methodologies-checklist" style="display: flex; flex-direction: column; gap: 6px;">
-                            <div class="method-checkbox-item" data-method="Miyawaki" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
-                                <input type="checkbox" id="chk-method-miyawaki" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
-                                <label for="chk-method-miyawaki" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
-                                    Miyawaki Pocket Forest
-                                </label>
-                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Miyawaki" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
-                            </div>
-                            <div class="method-checkbox-item" data-method="Syntropic" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
-                                <input type="checkbox" id="chk-method-syntropic" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
-                                <label for="chk-method-syntropic" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
-                                    Syntropic Agroforestry
-                                </label>
-                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Syntropic" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
-                            </div>
-                            <div class="method-checkbox-item" data-method="FoodForest" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
-                                <input type="checkbox" id="chk-method-foodforest" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
-                                <label for="chk-method-foodforest" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
-                                    Food Forest (Permaculture)
-                                </label>
-                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="FoodForest" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
-                            </div>
-                            <div class="method-checkbox-item" data-method="Nucleation" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
-                                <input type="checkbox" id="chk-method-nucleation" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
-                                <label for="chk-method-nucleation" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
-                                    Applied Nucleation
-                                </label>
-                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Nucleation" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
-                            </div>
-                            <div class="method-checkbox-item" data-method="DirectSeeding" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
-                                <input type="checkbox" id="chk-method-directseeding" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
-                                <label for="chk-method-directseeding" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
-                                    Direct Seeding
-                                </label>
-                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="DirectSeeding" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
-                            </div>
-                            <div class="method-checkbox-item" data-method="Block" style="display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative;">
-                                <input type="checkbox" id="chk-method-block" class="methodology-checkbox" style="width: auto; margin: 0; cursor: pointer;">
-                                <label for="chk-method-block" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1;">
-                                    Block Plantation (Conventional)
-                                </label>
-                                <i class="fa-solid fa-circle-info method-info-trigger" data-method="Block" style="cursor: pointer; color: var(--text-secondary); font-size: 10px;"></i>
-                            </div>
-                        </div>
-                    </div>
+
                 </form>
 
                 <div class="sidebar-metrics-list" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 14px;">
@@ -407,11 +361,68 @@
                                 </div>
                             </div>
 
+                            <!-- Planting Methodologies Grid (Moved below Preset Plans) -->
+                            <div class="methodologies-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; position: relative;">
+                                <label style="margin-bottom: 4px;">Planting Methodologies</label>
+                                <p class="section-desc" style="margin-bottom: 10px; font-size: 11px;">Select a planting methodology to customize the spatial density, layout, pathways, and crop layer configurations.</p>
+                                
+                                <div class="methodologies-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; margin-bottom: 12px;">
+                                    <!-- Miyawaki -->
+                                    <div class="method-checkbox-item" data-method="Miyawaki" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                            <input type="checkbox" id="chk-method-miyawaki" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                            <label for="chk-method-miyawaki" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Miyawaki Forest</label>
+                                        </div>
+                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Miyawaki" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
+                                    </div>
+                                    <!-- Syntropic -->
+                                    <div class="method-checkbox-item" data-method="Syntropic" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                            <input type="checkbox" id="chk-method-syntropic" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                            <label for="chk-method-syntropic" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Syntropic Agroforestry</label>
+                                        </div>
+                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Syntropic" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
+                                    </div>
+                                    <!-- Food Forest -->
+                                    <div class="method-checkbox-item" data-method="FoodForest" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                            <input type="checkbox" id="chk-method-foodforest" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                            <label for="chk-method-foodforest" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Food Forest (Permaculture)</label>
+                                        </div>
+                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="FoodForest" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
+                                    </div>
+                                    <!-- Nucleation -->
+                                    <div class="method-checkbox-item" data-method="Nucleation" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                            <input type="checkbox" id="chk-method-nucleation" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                            <label for="chk-method-nucleation" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Applied Nucleation</label>
+                                        </div>
+                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Nucleation" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
+                                    </div>
+                                    <!-- Direct Seeding -->
+                                    <div class="method-checkbox-item" data-method="DirectSeeding" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                            <input type="checkbox" id="chk-method-directseeding" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                            <label for="chk-method-directseeding" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Direct Seeding</label>
+                                        </div>
+                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="DirectSeeding" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
+                                    </div>
+                                    <!-- Block -->
+                                    <div class="method-checkbox-item" data-method="Block" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                            <input type="checkbox" id="chk-method-block" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                                            <label for="chk-method-block" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Block Plantation</label>
+                                        </div>
+                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Block" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <button type="button" id="btn-apply-selected-presets" class="btn" style="flex: 1; padding: 0 12px; font-size: 11px; height: 28px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 600; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i> Apply Selected Plans
                                 </button>
-                                <button type="button" id="btn-normalize-presets" class="btn" style="padding: 0 12px; font-size: 11px; height: 28px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 600; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                <button type="button" id="btn-normalize-presets" class="btn" style="padding: 0 12px; font-size: 11px; height: 28px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 600; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
                                     <i class="fa-solid fa-scale-balanced"></i> Auto-Balance %
                                 </button>
                             </div>
