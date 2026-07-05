@@ -3529,6 +3529,40 @@ window.addEventListener('load', () => {
     initMultiPresets();
     initAgentHub();
     
+    // Setup Mobile Sidebar Drawer Toggle and Close logic
+    const sidebar = document.querySelector('.sidebar');
+    const mobileSetupToggle = document.getElementById('btn-mobile-setup-toggle');
+    const sidebarClose = document.getElementById('btn-sidebar-close');
+
+    if (mobileSetupToggle && sidebar) {
+        mobileSetupToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+        });
+    }
+
+    if (sidebarClose && sidebar) {
+        sidebarClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.remove('open');
+        });
+    }
+
+    // Auto-close sidebar drawer when clicking outside it on mobile
+    document.addEventListener('click', (e) => {
+        if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== mobileSetupToggle && !e.target.closest('#btn-mobile-setup-toggle')) {
+            sidebar.classList.remove('open');
+        }
+    });
+
+    // Auto-close sidebar drawer when navigating tabs on mobile
+    const allNavItems = document.querySelectorAll('.nav-item');
+    allNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+            if (sidebar) sidebar.classList.remove('open');
+        });
+    });
+    
     // Update capacity meter dynamically when garden size inputs change
     const widthInput = document.getElementById('input-width');
     const heightInput = document.getElementById('input-height');

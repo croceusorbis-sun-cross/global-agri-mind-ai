@@ -17,12 +17,17 @@
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
-            <div class="brand" style="cursor: pointer;" onclick="switchTab('design-tab')">
-                <i class="fa-solid fa-seedling brand-icon"></i>
-                <div class="brand-text">
-                    <h2>GardenAI</h2>
-                    <span>Intelligent Garden Planner</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; width: 100%;">
+                <div class="brand" style="cursor: pointer; margin-bottom: 0;" onclick="switchTab('design-tab')">
+                    <i class="fa-solid fa-seedling brand-icon"></i>
+                    <div class="brand-text">
+                        <h2>GardenAI</h2>
+                        <span>Intelligent Garden Planner</span>
+                    </div>
                 </div>
+                <button id="btn-sidebar-close" style="display: none; background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 4px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
             
             <nav class="nav-menu">
@@ -806,6 +811,49 @@
         <strong style="color: var(--text-primary); font-size: 10px; display: block; margin-bottom: 4px;">Included Crops & Ratios:</strong>
         <ul id="presets-popover-plants" style="padding-left: 12px; margin: 0; font-size: 10px; list-style: square;"></ul>
     </div>
+
+    <!-- Mobile bottom navigation bar -->
+    <nav class="mobile-bottom-nav" style="display: none;">
+        <button class="nav-item active" data-tab="dashboard-tab">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-tab="agents-tab">
+            <i class="fa-solid fa-users-gear"></i>
+            <span>Expert Hub</span>
+        </button>
+        <button class="nav-item" data-tab="calendar-tab">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span>Calendar</span>
+        </button>
+        <button class="nav-item" data-tab="settings-tab">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Settings</span>
+        </button>
+    </nav>
+
+    <!-- Floating mobile parameters trigger -->
+    <button id="btn-mobile-setup-toggle" style="
+        display: none;
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        z-index: 9999;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--accent-emerald);
+        color: #121918;
+        border: none;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        font-size: 20px;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+    ">
+        <i class="fa-solid fa-sliders"></i>
+    </button>
 
     <!-- Script imports -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
