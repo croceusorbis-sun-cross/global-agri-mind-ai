@@ -1060,6 +1060,7 @@ function initMultiPresets() {
 
 // Function to generate crops from active presets and calculate quantities
 function applySelectedPresets() {
+    const presetCards = document.querySelectorAll('.preset-card');
     const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
     const errMsg = document.getElementById('presets-error-msg');
     
@@ -1817,7 +1818,7 @@ function renderLayoutGrid(width, height) {
                 cell.dataset.instanceId = cellData.instanceId;
 
                 // Highlight footprint if the crop instance is in the active selection
-                const isSelected = selectedPlantGroups.some(g => g.userData.instanceId === cellData.instanceId);
+                const isSelected = selectedPlantGroups.some(g => g && g.userData && g.userData.instanceId === cellData.instanceId);
                 if (isSelected) {
                     cell.classList.add('selected-footprint');
                 }
@@ -3621,8 +3622,8 @@ window.addEventListener('load', () => {
             if (form && form.reportValidity()) {
                 // Auto-apply checked presets if the crop list is currently empty
                 if (selectedCrops.length === 0) {
-                    const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
-                    if (activeCards.length > 0) {
+                    const hasCheckedPreset = Array.from(document.querySelectorAll('.preset-toggle')).some(cb => cb.checked);
+                    if (hasCheckedPreset) {
                         const ok = applySelectedPresets();
                         if (!ok) return;
                     }
