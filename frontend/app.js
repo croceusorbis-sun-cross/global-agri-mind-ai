@@ -996,6 +996,19 @@ function initMultiPresets() {
                 card.style.borderColor = 'var(--border-color)';
                 if (pctContainer) pctContainer.style.display = 'none';
             }
+            
+            // Auto-balance all active/checked presets to sum to exactly 100%
+            const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
+            if (activeCards.length > 0) {
+                const basePct = Math.floor(100 / activeCards.length);
+                const remainder = 100 % activeCards.length;
+                activeCards.forEach((c, idx) => {
+                    const input = c.querySelector('.preset-pct');
+                    if (input) {
+                        input.value = basePct + (idx < remainder ? 1 : 0);
+                    }
+                });
+            }
         });
 
         // Hover events
