@@ -1058,112 +1058,117 @@ function initMultiPresets() {
         });
     }
 
+// Function to generate crops from active presets and calculate quantities
+function applySelectedPresets() {
+    const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
+    const errMsg = document.getElementById('presets-error-msg');
+    
+    if (activeCards.length === 0) {
+        if (errMsg) {
+            errMsg.textContent = "Please select at least one preset garden plan to apply!";
+            errMsg.style.display = 'block';
+        }
+        return false;
+    }
+    if (errMsg) errMsg.style.display = 'none';
+
+    // Gather selected presets and their percentage weights
+    let totalPct = 0;
+    const selectedList = [];
+    activeCards.forEach(card => {
+        const presetKey = card.dataset.preset;
+        const pct = parseInt(card.querySelector('.preset-pct').value) || 0;
+        totalPct += pct;
+        selectedList.push({ key: presetKey, pct: pct });
+    });
+
+    if (totalPct === 0) return false;
+
+    // Get current garden dimensions
+    const width = parseFloat(document.getElementById('input-width').value) || 20;
+    const height = parseFloat(document.getElementById('input-height').value) || 30;
+    const totalArea = width * height;
+    const targetFootprint = totalArea * 0.8; // Allow 20% path spaces
+
+    // Aggregate crop allocations case-insensitively
+    const aggregatedCrops = {}; // cropName -> { plant, footprint }
+
+    selectedList.forEach(item => {
+        const ratio = item.pct / totalPct; // relative ratio of this preset
+        const presetFootprint = targetFootprint * ratio;
+        const cropsList = presetsConfig[item.key] || [];
+
+        cropsList.forEach(crop => {
+            const match = allPlants.find(p => p.name.toLowerCase() === crop.query.toLowerCase()) ||
+                          allPlants.find(p => p.name.toLowerCase().includes(crop.query.toLowerCase()));
+            
+            if (match) {
+                const keyName = match.name;
+                const cropAllocatedFootprint = presetFootprint * crop.weight;
+                
+                if (!aggregatedCrops[keyName]) {
+                    aggregatedCrops[keyName] = {
+                        plant: match,
+                        footprint: 0
+                    };
+                }
+                aggregatedCrops[keyName].footprint += cropAllocatedFootprint;
+            }
+        });
+    });
+
+    // Convert footprints to plant quantities
+    const rawItems = [];
+    for (const name in aggregatedCrops) {
+        const data = aggregatedCrops[name];
+        const spread = getPlantDiameter(data.plant);
+        const cellArea = spread * spread;
+        let qty = Math.floor(data.footprint / cellArea);
+        qty = Math.max(1, qty); // Ensure at least 1 plant
+        
+        rawItems.push({
+            plant: data.plant,
+            spread: spread,
+            cellArea: cellArea,
+            quantity: qty
+        });
+    }
+
+    if (rawItems.length === 0) return false;
+
+    // Scale if total footprint exceeds total garden area
+    let totalFootprint = rawItems.reduce((sum, item) => sum + (item.quantity * item.cellArea), 0);
+    if (totalFootprint > totalArea) {
+        const scale = totalArea / totalFootprint;
+        rawItems.forEach(item => {
+            item.quantity = Math.max(1, Math.floor(item.quantity * scale));
+        });
+    }
+
+    // Set as active selections
+    selectedCrops = [];
+    rawItems.forEach(item => {
+        let yieldPer = getYieldPerPlant(item.plant);
+        if (settingsWeightUnit === 'kg') {
+            yieldPer = yieldPer * 0.453592;
+        }
+        selectedCrops.push({
+            ...item.plant,
+            quantity: item.quantity,
+            yield: item.quantity * yieldPer,
+            yieldPerPlant: yieldPer
+        });
+    });
+
+    renderCropTags();
+    return true;
+}
+
     // Apply Selected Plans button listener
     const btnApply = document.getElementById('btn-apply-selected-presets');
     if (btnApply) {
         btnApply.addEventListener('click', () => {
-            const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
-            const errMsg = document.getElementById('presets-error-msg');
-            
-            if (activeCards.length === 0) {
-                if (errMsg) {
-                    errMsg.textContent = "Please select at least one preset garden plan to apply!";
-                    errMsg.style.display = 'block';
-                }
-                return;
-            }
-            if (errMsg) errMsg.style.display = 'none';
-
-            // Gather selected presets and their percentage weights
-            let totalPct = 0;
-            const selectedList = [];
-            activeCards.forEach(card => {
-                const presetKey = card.dataset.preset;
-                const pct = parseInt(card.querySelector('.preset-pct').value) || 0;
-                totalPct += pct;
-                selectedList.push({ key: presetKey, pct: pct });
-            });
-
-            if (totalPct === 0) return;
-
-            // Get current garden dimensions
-            const width = parseFloat(document.getElementById('input-width').value) || 20;
-            const height = parseFloat(document.getElementById('input-height').value) || 30;
-            const totalArea = width * height;
-            const targetFootprint = totalArea * 0.8; // Allow 20% path spaces
-
-            // Aggregate crop allocations case-insensitively
-            const aggregatedCrops = {}; // cropName -> { plant, footprint }
-
-            selectedList.forEach(item => {
-                const ratio = item.pct / totalPct; // relative ratio of this preset
-                const presetFootprint = targetFootprint * ratio;
-                const cropsList = presetsConfig[item.key] || [];
-
-                cropsList.forEach(crop => {
-                    const match = allPlants.find(p => p.name.toLowerCase() === crop.query.toLowerCase()) ||
-                                  allPlants.find(p => p.name.toLowerCase().includes(crop.query.toLowerCase()));
-                    
-                    if (match) {
-                        const keyName = match.name;
-                        const cropAllocatedFootprint = presetFootprint * crop.weight;
-                        
-                        if (!aggregatedCrops[keyName]) {
-                            aggregatedCrops[keyName] = {
-                                plant: match,
-                                footprint: 0
-                            };
-                        }
-                        aggregatedCrops[keyName].footprint += cropAllocatedFootprint;
-                    }
-                });
-            });
-
-            // Convert footprints to plant quantities
-            const rawItems = [];
-            for (const name in aggregatedCrops) {
-                const data = aggregatedCrops[name];
-                const spread = getPlantDiameter(data.plant);
-                const cellArea = spread * spread;
-                let qty = Math.floor(data.footprint / cellArea);
-                qty = Math.max(1, qty); // Ensure at least 1 plant
-                
-                rawItems.push({
-                    plant: data.plant,
-                    spread: spread,
-                    cellArea: cellArea,
-                    quantity: qty
-                });
-            }
-
-            if (rawItems.length === 0) return;
-
-            // Scale if total footprint exceeds total garden area
-            let totalFootprint = rawItems.reduce((sum, item) => sum + (item.quantity * item.cellArea), 0);
-            if (totalFootprint > totalArea) {
-                const scale = totalArea / totalFootprint;
-                rawItems.forEach(item => {
-                    item.quantity = Math.max(1, Math.floor(item.quantity * scale));
-                });
-            }
-
-            // Set as active selections
-            selectedCrops = [];
-            rawItems.forEach(item => {
-                let yieldPer = getYieldPerPlant(item.plant);
-                if (settingsWeightUnit === 'kg') {
-                    yieldPer = yieldPer * 0.453592;
-                }
-                selectedCrops.push({
-                    ...item.plant,
-                    quantity: item.quantity,
-                    yield: item.quantity * yieldPer,
-                    yieldPerPlant: yieldPer
-                });
-            });
-
-            renderCropTags();
-            submitDesign(true); // Smooth scroll to 3D canvas viewport on preset load
+            applySelectedPresets();
         });
     }
 }
@@ -3044,425 +3049,6 @@ function trigger3DRender() {
     }
 }
 
-function build3DPlantModel(plant, diameter) {
-    const plantGroup = new THREE.Group();
-    const name = plant.name.toLowerCase();
-    const category = plant.type ? plant.type.toLowerCase() : "";
-
-    // Get color theme matching the plant category/type
-    const colors = getPlantColor(plant.id);
-    const leafColor = plant.foliage_color ? new THREE.Color(plant.foliage_color) : new THREE.Color(colors.border);
-    const leafMat = new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.8 });
-    const stalkMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.8 }); // Green stalk
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.95 }); // Brown wood
-
-    // 1. FRUIT TREES (Apple, Peach, Pear, Cherry, Orange, etc.)
-    if (name.includes("tree") || category.includes("tree")) {
-        // Trunk
-        const trunkGeo = new THREE.CylinderGeometry(0.15 * diameter, 0.22 * diameter, 2.5, 8);
-        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-        trunk.position.y = 1.25;
-        plantGroup.add(trunk);
-
-        // Foliage Canopy (built of 3 overlapping spheres for organic look, or custom shape)
-        const canopyGroup = new THREE.Group();
-        canopyGroup.position.y = 2.8;
-
-        if (plant.canopy_shape === 'conical') {
-            const conical = new THREE.Mesh(new THREE.ConeGeometry(1.5, 3.0, 8), leafMat);
-            conical.position.y = 0.5;
-            canopyGroup.add(conical);
-        } else if (plant.canopy_shape === 'weeping') {
-            const weeping = new THREE.Mesh(new THREE.SphereGeometry(1.4, 8, 8), leafMat);
-            weeping.scale.set(1.0, 1.6, 1.0);
-            weeping.position.y = 0.3;
-            canopyGroup.add(weeping);
-        } else if (plant.canopy_shape === 'columnar') {
-            const columnar = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 3.2, 8), leafMat);
-            columnar.position.y = 0.6;
-            canopyGroup.add(columnar);
-        } else if (plant.canopy_shape === 'vase') {
-            const vase = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 0.5, 3.0, 8), leafMat);
-            vase.position.y = 0.5;
-            canopyGroup.add(vase);
-        } else {
-            // rounded / spreading / default
-            const mainCanopy = new THREE.Mesh(new THREE.SphereGeometry(1.4, 8, 8), leafMat);
-            canopyGroup.add(mainCanopy);
-
-            const leftCanopy = new THREE.Mesh(new THREE.SphereGeometry(1.0, 8, 8), leafMat);
-            leftCanopy.position.set(-0.8, 0.3, 0.2);
-            canopyGroup.add(leftCanopy);
-
-            const rightCanopy = new THREE.Mesh(new THREE.SphereGeometry(1.0, 8, 8), leafMat);
-            rightCanopy.position.set(0.8, 0.1, -0.3);
-            canopyGroup.add(rightCanopy);
-        }
-
-        plantGroup.add(canopyGroup);
-
-        // Hanging Fruits
-        let fruitColorVal = 0xef4444; // Apple red by default
-        if (plant.fruit_color) {
-            fruitColorVal = new THREE.Color(plant.fruit_color);
-        } else {
-            if (name.includes("orange") || name.includes("citrus")) fruitColorVal = 0xf97316; // Orange
-            if (name.includes("lemon")) fruitColorVal = 0xeab308; // Lemon yellow
-            if (name.includes("peach")) fruitColorVal = 0xfca5a5; // Peach pink
-            if (name.includes("pear")) fruitColorVal = 0x84cc16; // Pear lime
-        }
-
-        const treeFruitMat = new THREE.MeshStandardMaterial({ color: fruitColorVal, roughness: 0.5 });
-        for (let i = 0; i < 6; i++) {
-            const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.14, 6, 6), treeFruitMat);
-            const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
-            const radius = 0.9 + Math.random() * 0.4;
-            fruit.position.set(
-                radius * Math.cos(angle),
-                2.4 + (Math.random() - 0.5) * 0.6,
-                radius * Math.sin(angle)
-            );
-            plantGroup.add(fruit);
-        }
-    }
-    // 2. TALL VINES / STAKED CROPS (Tomato, Pepper, Eggplant, Cucumber, Beans, Peas)
-    else if (name.includes("tomato") || name.includes("cucumber") || name.includes("pepper") || name.includes("eggplant") || name.includes("bean") || name.includes("pea")) {
-        // Vertical supporting wooden stake
-        const stakeGeo = new THREE.BoxGeometry(0.06, 2.0, 0.06);
-        const stake = new THREE.Mesh(stakeGeo, trunkMat);
-        stake.position.y = 1.0;
-        plantGroup.add(stake);
-
-        // Main climbing vine stalk
-        const stalkGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.8, 6);
-        const stalk = new THREE.Mesh(stalkGeo, stalkMat);
-        stalk.position.y = 0.9;
-        plantGroup.add(stalk);
-
-        // Foliage levels along the stake
-        for (let l = 0; l < 3; l++) {
-            const levelY = 0.4 + l * 0.5;
-            const numLeaves = 3 + l;
-            for (let i = 0; i < numLeaves; i++) {
-                const leafGeo = new THREE.SphereGeometry(0.24, 6, 6);
-                const leaf = new THREE.Mesh(leafGeo, leafMat);
-                const angle = (i / numLeaves) * Math.PI * 2;
-                leaf.position.set(
-                    0.25 * Math.cos(angle),
-                    levelY + (Math.random() - 0.5) * 0.15,
-                    0.25 * Math.sin(angle)
-                );
-                // Flatten leaves slightly
-                leaf.scale.set(1.4, 0.4, 0.8);
-                plantGroup.add(leaf);
-            }
-        }
-
-        // Hanging Crops
-        let cropColor = 0xef4444; // Tomato Red
-        let isCapsule = false;
-        let cropSize = 0.15;
-        let cropCount = 4;
-
-        if (plant.fruit_color) {
-            cropColor = new THREE.Color(plant.fruit_color);
-            if (name.includes("cucumber") || name.includes("pepper") || name.includes("eggplant") || name.includes("bean") || name.includes("pea")) {
-                isCapsule = true;
-            }
-        } else {
-            if (name.includes("cucumber")) {
-                cropColor = 0x15803d; // Cucumber dark green
-                isCapsule = true;
-                cropCount = 3;
-            } else if (name.includes("pepper")) {
-                cropColor = name.includes("bell") ? 0xef4444 : (name.includes("jalapeno") ? 0x16a34a : 0xf59e0b); // Red/Green/Yellow
-                isCapsule = true;
-                cropCount = 4;
-            } else if (name.includes("eggplant")) {
-                cropColor = 0x581c87; // Eggplant dark purple
-                isCapsule = true;
-                cropSize = 0.22;
-                cropCount = 2;
-            } else if (name.includes("bean") || name.includes("pea")) {
-                cropColor = 0x84cc16; // Lime green pod
-                isCapsule = true;
-                cropSize = 0.08;
-                cropCount = 5;
-            }
-        }
-
-        const cropMat = new THREE.MeshStandardMaterial({ color: cropColor, roughness: 0.6 });
-        for (let i = 0; i < cropCount; i++) {
-            let veggie;
-            if (isCapsule) {
-                // Cylindrical veggie
-                veggie = new THREE.Mesh(new THREE.CylinderGeometry(cropSize * 0.5, cropSize * 0.5, cropSize * 2.2, 5), cropMat);
-                veggie.rotation.z = Math.PI / 4 + Math.random() * 0.2;
-            } else {
-                // Spherical veggie
-                veggie = new THREE.Mesh(new THREE.SphereGeometry(cropSize, 6, 6), cropMat);
-            }
-            const angle = (i / cropCount) * Math.PI * 2 + 0.3;
-            veggie.position.set(
-                0.22 * Math.cos(angle),
-                0.5 + Math.random() * 1.0,
-                0.22 * Math.sin(angle)
-            );
-            plantGroup.add(veggie);
-        }
-    }
-    // 3. GREEN ONIONS, ONIONS, GARLIC, SHALLOTS, CHIVES (Tall vertical shoots + base bulb)
-    else if (name.includes("onion") || name.includes("garlic") || name.includes("shallot") || name.includes("chive") || name.includes("leek")) {
-        // Base bulb sitting right in the soil
-        let bulbColor = 0xffffff; // Garlic white
-        if (plant.fruit_color) {
-            bulbColor = new THREE.Color(plant.fruit_color);
-        } else {
-            if (name.includes("onion") && (name.includes("red") || name.includes("purple"))) bulbColor = 0x800080; // Red onion purple
-            else if (name.includes("onion") && name.includes("yellow")) bulbColor = 0xd8a060; // Yellow onion
-            else if (name.includes("onion") || name.includes("chive")) bulbColor = 0xf0fff0; // White bulb / green base
-        }
-        
-        const bulbMat = new THREE.MeshStandardMaterial({ color: bulbColor, roughness: 0.9 });
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), bulbMat);
-        bulb.position.y = 0.06;
-        bulb.scale.set(1.0, 1.3, 1.0); // Slightly tall bulb shape
-        plantGroup.add(bulb);
-
-        // Multiple vertical green hollow shoots (tapering upwards)
-        const shootCount = name.includes("chive") ? 8 : (name.includes("leek") ? 3 : 5);
-        for (let i = 0; i < shootCount; i++) {
-            const shootGeo = new THREE.CylinderGeometry(0.01, 0.035, 1.0 + Math.random() * 0.4, 5);
-            const shoot = new THREE.Mesh(shootGeo, stalkMat);
-            
-            const angle = (i / shootCount) * Math.PI * 2;
-            const spreadRad = 0.06;
-            shoot.position.set(spreadRad * Math.cos(angle), 0.5, spreadRad * Math.sin(angle));
-            
-            // Tilt them slightly outward from the center
-            shoot.rotation.z = -(Math.cos(angle) * 0.18 + (Math.random() - 0.5) * 0.05);
-            shoot.rotation.x = Math.sin(angle) * 0.18 + (Math.random() - 0.5) * 0.05;
-            
-            plantGroup.add(shoot);
-        }
-    }
-    // 4. ROOT VEGETABLES (Carrot, Radish, Turnip, Beet, Potato, Sweet Potato, Parsnip)
-    else if (name.includes("carrot") || name.includes("radish") || name.includes("turnip") || name.includes("beet") || name.includes("potato") || name.includes("parsnip")) {
-        // Root crown peaking out of soil
-        let rootColor = 0xd97706; // Carrot Orange
-        if (plant.fruit_color) {
-            rootColor = new THREE.Color(plant.fruit_color);
-        } else {
-            if (name.includes("radish")) rootColor = 0xdc2626; // Radish Red
-            if (name.includes("beet")) rootColor = 0x701a75; // Beet deep purple
-            if (name.includes("turnip")) rootColor = 0xf5f3ff; // Turnip whitish
-            if (name.includes("potato")) rootColor = 0x78350f; // Potato brown
-        }
-        
-        const rootMat = new THREE.MeshStandardMaterial({ color: rootColor, roughness: 0.9 });
-        const rootCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.08, 0.18, 8), rootMat);
-        rootCrown.position.y = 0.06;
-        plantGroup.add(rootCrown);
-
-        // Feathery root greens foliage
-        const leafCount = 4 + Math.round(Math.random() * 3);
-        for (let i = 0; i < leafCount; i++) {
-            const leafGeo = new THREE.ConeGeometry(0.04, 0.7, 5);
-            const leaf = new THREE.Mesh(leafGeo, leafMat);
-            const angle = (i / leafCount) * Math.PI * 2;
-            
-            // Position at top of crown
-            leaf.position.set(0.04 * Math.cos(angle), 0.4, 0.04 * Math.sin(angle));
-            
-            // Tilt outwards
-            leaf.rotation.z = -(Math.cos(angle) * 0.35);
-            leaf.rotation.x = Math.sin(angle) * 0.35;
-            
-            plantGroup.add(leaf);
-        }
-    }
-    // 5. ROSETTE LEAFY GREENS (Lettuce, Spinach, Cabbage, Kale, Chard, Collards, Bok Choy)
-    else if (category.includes("green") || name.includes("lettuce") || name.includes("spinach") || name.includes("cabbage") || name.includes("kale") || name.includes("chard") || name.includes("greens") || name.includes("bok choy")) {
-        // Form a leafy rosette with multiple overlapping flat leafy boxes rotated around center
-        const leavesGroup = new THREE.Group();
-        leavesGroup.position.y = 0.1;
-
-        const petalsCount = 6;
-        for (let i = 0; i < petalsCount; i++) {
-            const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.04, 0.7), leafMat);
-            const angle = (i / petalsCount) * Math.PI * 2;
-            
-            // Position offset outward
-            leaf.position.set(0.18 * Math.cos(angle), 0.08, 0.18 * Math.sin(angle));
-            
-            // Rotation to form rosette
-            leaf.rotation.y = -angle + Math.PI / 2;
-            leaf.rotation.x = 0.45; // angle upwards
-            
-            leavesGroup.add(leaf);
-        }
-
-        // Central leaf ball cluster
-        const centerBall = new THREE.Mesh(new THREE.SphereGeometry(0.24, 6, 6), leafMat);
-        centerBall.position.set(0, 0.12, 0);
-        leavesGroup.add(centerBall);
-
-        plantGroup.add(leavesGroup);
-    }
-    // 6. BUSHY SHRUBS & BERRIES (Strawberry, Raspberry, Blackberry, Blueberry)
-    else if (category.includes("berry") || name.includes("strawberry") || name.includes("raspberry") || name.includes("blackberry") || name.includes("blueberry")) {
-        // Low bushy foliage
-        const bushGeo = new THREE.SphereGeometry(0.38, 8, 8);
-        const bush = new THREE.Mesh(bushGeo, leafMat);
-        bush.position.y = 0.22;
-        bush.scale.set(1.4, 0.9, 1.2); // flat bush
-        plantGroup.add(bush);
-
-        // Scattered colorful berries
-        let berryColor = 0xef4444; // Red strawberry/raspberry
-        if (plant.fruit_color) {
-            berryColor = new THREE.Color(plant.fruit_color);
-        } else {
-            if (name.includes("blueberry")) berryColor = 0x2563eb; // Blue
-            if (name.includes("blackberry")) berryColor = 0x0f172a; // Black
-        }
-
-        const shrubBerryMat = new THREE.MeshStandardMaterial({ color: berryColor, roughness: 0.6 });
-        for (let i = 0; i < 6; i++) {
-            const berry = new THREE.Mesh(new THREE.SphereGeometry(0.06, 5, 5), shrubBerryMat);
-            const angle = (i / 6) * Math.PI * 2;
-            berry.position.set(
-                0.32 * Math.cos(angle) * (0.8 + Math.random() * 0.4),
-                0.16 + Math.random() * 0.2,
-                0.28 * Math.sin(angle) * (0.8 + Math.random() * 0.4)
-            );
-            plantGroup.add(berry);
-        }
-    }
-    // 7. COMPANION FLOWERS (Marigold, Nasturtium, Sunflower, Lavender, Flower)
-    else if (category.includes("flower") || name.includes("marigold") || name.includes("sunflower") || name.includes("lavender") || name.includes("nasturtium") || name.includes("flower") || plant.type === "Flower") {
-        // Stem
-        const stemGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6);
-        const stem = new THREE.Mesh(stemGeo, stalkMat);
-        stem.position.y = 0.4;
-        plantGroup.add(stem);
-
-        // Broad green foundation leaves
-        const foundationGeo = new THREE.SphereGeometry(0.24, 6, 6);
-        const foundation = new THREE.Mesh(foundationGeo, leafMat);
-        foundation.position.y = 0.15;
-        foundation.scale.set(1.3, 0.4, 1.0);
-        plantGroup.add(foundation);
-
-        // Colorful flower petals disk
-        let flowerColor = 0xf59e0b; // Gold/orange marigold
-        let petSize = 0.22;
-        if (plant.fruit_color) {
-            flowerColor = new THREE.Color(plant.fruit_color);
-        } else {
-            if (name.includes("sunflower")) {
-                flowerColor = 0xeab308; // Bright yellow
-                petSize = 0.45;
-            } else if (name.includes("lavender")) {
-                flowerColor = 0xa855f7; // Purple
-                petSize = 0.14;
-            }
-        }
-
-        const bloomMat = new THREE.MeshStandardMaterial({ color: flowerColor, roughness: 0.6 });
-        const flower = new THREE.Mesh(new THREE.SphereGeometry(petSize, 8, 8), bloomMat);
-        flower.position.set(0, 0.8, 0);
-        
-        if (name.includes("sunflower")) {
-            flower.scale.set(1.0, 0.2, 1.0); // flat face
-            flower.rotation.x = Math.PI / 6;
-            stem.scale.set(1.5, 1.8, 1.5); // taller stem
-            stem.position.y = 0.9;
-            flower.position.set(0, 1.8, 0.1);
-        } else if (name.includes("lavender")) {
-            flower.scale.set(0.6, 2.8, 0.6); // tall spike
-        }
-        
-        plantGroup.add(flower);
-    }
-    // 8. GENERAL HERBS & SMALL BUSHES (Basil, Rosemary, Thyme, Cilantro, Oregano, Sage, Parsley)
-    else {
-        // Rosette stem branches
-        const herbGroup = new THREE.Group();
-        herbGroup.position.y = 0.1;
-
-        const branchCount = 3;
-        for (let i = 0; i < branchCount; i++) {
-            const branch = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), leafMat);
-            const angle = (i / branchCount) * Math.PI * 2;
-            branch.position.set(
-                0.14 * Math.cos(angle),
-                0.12,
-                0.14 * Math.sin(angle)
-            );
-            // Slightly offset scales
-            branch.scale.set(1.1, 0.85, 1.1);
-            herbGroup.add(branch);
-        }
-
-        const centerHerb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 6), leafMat);
-        centerHerb.position.set(0, 0.2, 0);
-        herbGroup.add(centerHerb);
-
-        plantGroup.add(herbGroup);
-    }
-
-    // Scale the entire group based on mature dimensions compared to category baselines
-    let baseH = 1.0;
-    let baseW = 1.0;
-
-    if (name.includes("tree") || category.includes("tree")) {
-        baseH = 15.0;
-        baseW = 8.0;
-    } else if (name.includes("tomato") || name.includes("cucumber") || name.includes("pepper") || name.includes("eggplant") || name.includes("bean") || name.includes("pea")) {
-        baseH = 6.0;
-        baseW = 3.0;
-    } else if (name.includes("onion") || name.includes("garlic") || name.includes("shallot") || name.includes("chive") || name.includes("leek")) {
-        baseH = 1.0;
-        baseW = 1.0;
-    } else if (name.includes("carrot") || name.includes("radish") || name.includes("turnip") || name.includes("beet") || name.includes("potato") || name.includes("parsnip")) {
-        baseH = 1.0;
-        baseW = 1.0;
-    } else if (category.includes("green") || name.includes("lettuce") || name.includes("spinach") || name.includes("cabbage") || name.includes("kale") || name.includes("chard") || name.includes("greens") || name.includes("bok choy")) {
-        baseH = 1.0;
-        baseW = 1.0;
-    } else if (category.includes("berry") || name.includes("strawberry") || name.includes("raspberry") || name.includes("blackberry") || name.includes("blueberry")) {
-        baseH = 1.0;
-        baseW = 1.0;
-    } else if (category.includes("flower") || name.includes("marigold") || name.includes("sunflower") || name.includes("lavender") || name.includes("nasturtium") || name.includes("flower") || plant.type === "Flower") {
-        if (name.includes("sunflower")) {
-            baseH = 8.0;
-            baseW = 4.0;
-        } else if (name.includes("lavender")) {
-            baseH = 3.0;
-            baseW = 2.0;
-        } else {
-            baseH = 3.0;
-            baseW = 2.0;
-        }
-    } else {
-        baseH = 1.0;
-        baseW = 1.0;
-    }
-
-    const matureH = plant.mature_height ? parseFloat(plant.mature_height) : getPlantHeight(plant);
-    const matureW = plant.mature_width ? parseFloat(plant.mature_width) : getPlantDiameter(plant);
-
-    const scaleX = baseW > 0 ? matureW / baseW : 1.0;
-    const scaleY = baseH > 0 ? matureH / baseH : 1.0;
-    
-    plantGroup.scale.set(scaleX, scaleY, scaleX);
-
-    return plantGroup;
-}
-
-let plantTextureCache = new Map();
-
 function disposeNode(node) {
     if (node.geometry) node.geometry.dispose();
     if (node.material) {
@@ -3637,21 +3223,7 @@ function update3DLayout(width, height, gridArray) {
     ground.position.y = -0.1;
     gardenGroup3d.add(ground);
 
-    // Count total crops to determine auto-performance switch
-    let totalCropsCount = 0;
-    const preCountSet = new Set();
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            const cellData = gridArray[r][c];
-            if (cellData && cellData.type === 'crop' && !preCountSet.has(cellData.instanceId)) {
-                preCountSet.add(cellData.instanceId);
-                totalCropsCount++;
-            }
-        }
-    }
 
-    const isSimplifiedMode = currentRenderMode === 'simplified' || 
-        (currentRenderMode === 'auto' && totalCropsCount > 500);
 
     // Increment active 3D render ID task to cancel any older draws
     const activeRenderId = ++current3DRenderId;
@@ -3731,13 +3303,8 @@ function update3DLayout(width, height, gridArray) {
                 soil.position.set(0, 0.18, 0);
                 instanceGroup.add(soil);
 
-                // 3. Center the 3D plant model (realistic or simplified octagonal cone)
-                let plant3d;
-                if (isSimplifiedMode) {
-                    plant3d = buildSimplifiedConeModel(item.cellData.plant, diameter);
-                } else {
-                    plant3d = build3DPlantModel(item.cellData.plant, diameter);
-                }
+                // 3. Center the 3D plant model (simplified octagonal cone)
+                const plant3d = buildSimplifiedConeModel(item.cellData.plant, diameter);
                 plant3d.position.set(0, 0.20, 0);
                 instanceGroup.add(plant3d);
 
@@ -3828,14 +3395,7 @@ window.addEventListener('load', () => {
         });
     }
 
-    // Render Mode select change listener
-    const renderModeSelect = document.getElementById('select-render-mode');
-    if (renderModeSelect) {
-        renderModeSelect.addEventListener('change', (e) => {
-            currentRenderMode = e.target.value;
-            trigger3DRender();
-        });
-    }
+
 
     // Setup Planting Methodology Checkboxes logic
     const methodologyDetails = {
@@ -4059,6 +3619,14 @@ window.addEventListener('load', () => {
             e.preventDefault();
             const form = document.getElementById('design-form');
             if (form && form.reportValidity()) {
+                // Auto-apply checked presets if the crop list is currently empty
+                if (selectedCrops.length === 0) {
+                    const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
+                    if (activeCards.length > 0) {
+                        const ok = applySelectedPresets();
+                        if (!ok) return;
+                    }
+                }
                 submitDesign(true);
             }
         });
