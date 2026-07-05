@@ -3537,7 +3537,11 @@ window.addEventListener('load', () => {
     
     // Trigger design refresh immediately on toggling layout distribution
     const distributeInput = document.getElementById('chk-distribute-layout');
-    if (distributeInput) distributeInput.addEventListener('change', submitDesign);
+    if (distributeInput) {
+        distributeInput.addEventListener('change', () => {
+            if (selectedCrops.length > 0) submitDesign();
+        });
+    }
 
     // Setup Planting Methodology Checkboxes logic
     const methodologyDetails = {
@@ -3663,7 +3667,9 @@ window.addEventListener('load', () => {
                     if (blockCb) blockCb.checked = true;
                 }
             }
-            submitDesign();
+            if (selectedCrops.length > 0) {
+                submitDesign();
+            }
         });
 
         // Hover events
