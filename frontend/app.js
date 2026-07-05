@@ -2382,6 +2382,7 @@ let scene3d, camera3d, renderer3d, gardenGroup3d;
 let current2DRenderId = 0;
 let current3DRenderId = 0;
 let isAutoBalanceEnabled = true;
+const plantTextureCache = new Map();
 let raycaster3d, mouse3d;
 let lastHoveredGroup = null;
 let isDragging3d = false;
