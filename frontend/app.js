@@ -521,6 +521,7 @@ btnLayoutView.addEventListener('click', () => {
 
     is3DMode = false;
     update3DCompass();
+    renderLayoutGrid(currentWidth, currentHeight);
 });
 
 btn3dView.addEventListener('click', () => {
@@ -1778,7 +1779,22 @@ function renderLayoutGrid(width, height) {
     });
 }
 
-    // 4. Render the grid elements to the DOM
+    // 4. Save grid state for 3D view caching
+    currentGridArray = gridArray;
+    currentWidth = width;
+    currentHeight = height;
+
+    // Defer 2D DOM grid rendering if the user is currently looking at the 3D View.
+    // This allows instant garden generation without creating thousands of DOM elements.
+    if (is3DMode) {
+        return;
+    }
+
+    // Increment active 2D render ID to cancel any pending chunk draws
+    const activeRenderId = ++current2DRenderId;
+
+    // 5. Build grid elements list to render asynchronously in chunks
+    const cellsQueue = [];
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const cellData = gridArray[r][c];
@@ -1890,7 +1906,7 @@ function renderLayoutGrid(width, height) {
                                 selectionAnchorGroup = hitGroup;
                             }
 
-                            // Update selection highlights in place without destroying the DOM elements!
+                            // Update selection highlights in place
                             document.querySelectorAll('.grid-cell.crop').forEach(el => {
                                 const instId = el.dataset.instanceId;
                                 const isSel = selectedPlantGroups.some(g => g.userData.instanceId === instId);
@@ -1917,7 +1933,6 @@ function renderLayoutGrid(width, height) {
                         dragged2DOffsetC = clickC - cellData.startC;
                         dragged2DOffsetR = clickR - cellData.startR;
 
-                        // Save starting coordinates for all selected plants in 2D coordinates tracking
                         selectedPlantGroups.forEach(g => {
                             const gr = g.userData.originalGridR;
                             const gc = g.userData.originalGridC;
@@ -2008,17 +2023,32 @@ function renderLayoutGrid(width, height) {
                     cell.appendChild(underBadge);
                 }
             }
-            gardenGrid.appendChild(cell);
+            cellsQueue.push(cell);
         }
     }
-    
-    // Render static ruler dimensions synced to cell spacing
-    renderRulers(cols, rows, currentCellSize);
 
-    // Save grid state for 3D view caching
-    currentGridArray = gridArray;
-    currentWidth = width;
-    currentHeight = height;
+    let currentIndex = 0;
+    const chunkSize = 1000; // Render 1000 cells per frame to keep browser tab fully responsive
+
+    function renderNext2DChunk() {
+        if (activeRenderId !== current2DRenderId) return;
+
+        const limit = Math.min(currentIndex + chunkSize, cellsQueue.length);
+        for (let i = currentIndex; i < limit; i++) {
+            gardenGrid.appendChild(cellsQueue[i]);
+        }
+
+        currentIndex = limit;
+
+        if (currentIndex < cellsQueue.length) {
+            requestAnimationFrame(renderNext2DChunk);
+        } else {
+            // Render rulers once all cells have finished loading into the DOM
+            renderRulers(cols, rows, currentCellSize);
+        }
+    }
+
+    requestAnimationFrame(renderNext2DChunk);
 }
 
 // Render static ruler coordinate ticks (Feet & Meters)
@@ -2325,6 +2355,7 @@ function renderCalendarTimeline() {
 // ==================== THREE.JS 3D LAYOUT SYSTEM ====================
 let scene3d, camera3d, renderer3d, gardenGroup3d;
 let currentRenderMode = 'auto';
+let current2DRenderId = 0;
 let raycaster3d, mouse3d;
 let lastHoveredGroup = null;
 let isDragging3d = false;
@@ -3546,7 +3577,7 @@ function buildSimplifiedConeModel(plant, diameter) {
     const height = plant.mature_height ? parseFloat(plant.mature_height) : 3.0;
 
     // Cylinder: CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded)
-    const coneGeo = new THREE.CylinderGeometry(maxRad, minRad, height, 16);
+    const coneGeo = new THREE.CylinderGeometry(maxRad, minRad, height, 8);
     
     // Materials
     const sideMat = new THREE.MeshStandardMaterial({
@@ -3622,86 +3653,124 @@ function update3DLayout(width, height, gridArray) {
     const isSimplifiedMode = currentRenderMode === 'simplified' || 
         (currentRenderMode === 'auto' && totalCropsCount > 500);
 
+    // Increment active 3D render ID task to cancel any older draws
+    const activeRenderId = ++current3DRenderId;
+
+    // Collect all elements (boardwalk paths and crops) to build in an async queue
+    const renderQueue = [];
     const placedInstances = new Set();
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const cellData = gridArray[r][c];
+            if (cellData === null) continue;
+
             const x = c - cols/2 + 0.5;
             const z = r - rows/2 + 0.5;
 
-            if (cellData === null) continue;
-
             if (cellData.type === 'path') {
-                // Path rustic wood boardwalk plank box
-                const pathGeo = new THREE.BoxGeometry(0.98, 0.12, 0.98);
-                const pathMat = new THREE.MeshStandardMaterial({ color: 0x5a4537, roughness: 0.95 }); // boardwalk brown
-                const pathTile = new THREE.Mesh(pathGeo, pathMat);
-                pathTile.position.set(x, 0.06, z);
-                gardenGroup3d.add(pathTile);
+                renderQueue.push({
+                    type: 'path',
+                    x: x,
+                    z: z
+                });
             } else if (cellData.type === 'crop') {
                 if (!placedInstances.has(cellData.instanceId)) {
                     placedInstances.add(cellData.instanceId);
-
-                    const diameter = cellData.diameter;
-                    const startR = cellData.startR;
-                    const startC = cellData.startC;
-                    
-                    // Calculate center coordinates for footprint spacing
-                    const centerX = startC - cols/2 + diameter/2;
-                    const centerZ = startR - rows/2 + diameter/2;
-
-                    // Create a single instance group representing the entire crop raised bed
-                    const instanceGroup = new THREE.Group();
-                    instanceGroup.name = "cropInstance";
-                    instanceGroup.position.set(centerX, 0, centerZ);
-
-                    // 1. Raised wood frame wrapper
-                    const frameGeo = new THREE.BoxGeometry(diameter * 0.99, 0.18, diameter * 0.99);
-                    const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2b22, roughness: 0.9 }); // Dark wood retaining frame
-                    const frame = new THREE.Mesh(frameGeo, frameMat);
-                    frame.position.set(0, 0.09, 0);
-                    instanceGroup.add(frame);
-
-                    // 2. Rich dark organic compost soil surface
-                    const soilGeo = new THREE.BoxGeometry(diameter * 0.94, 0.06, diameter * 0.94);
-                    const soilMat = new THREE.MeshStandardMaterial({ color: 0x160f0a, roughness: 0.98 }); // Soil compost black
-                    const soil = new THREE.Mesh(soilGeo, soilMat);
-                    soil.position.set(0, 0.18, 0);
-                    instanceGroup.add(soil);
-
-                    // 3. Center the 3D plant model (realistic or simplified truncated cone) inside the raised bed
-                    let plant3d;
-                    if (isSimplifiedMode) {
-                        plant3d = buildSimplifiedConeModel(cellData.plant, diameter);
-                    } else {
-                        plant3d = build3DPlantModel(cellData.plant, diameter);
-                    }
-                    plant3d.position.set(0, 0.20, 0);
-                    instanceGroup.add(plant3d);
-
-                    // Associate plant details to metadata object for Raycasting hover detection
-                    const plantData = {
-                        name: cellData.plant.name,
-                        type: cellData.plant.type,
-                        spread: diameter,
-                        description: cellData.plant.description,
-                        sun: cellData.plant.sun_requirements,
-                        water: cellData.plant.water_requirements,
-                        frame: frame,
-                        soil: soil
-                    };
-                    
-                    instanceGroup.userData = plantData;
-                    frame.userData = plantData;
-                    soil.userData = plantData;
-                    plant3d.userData = plantData;
-
-                    gardenGroup3d.add(instanceGroup);
+                    renderQueue.push({
+                        type: 'crop',
+                        cellData: cellData,
+                        diameter: cellData.diameter,
+                        startR: cellData.startR,
+                        startC: cellData.startC
+                    });
                 }
             }
         }
     }
+
+    let currentIndex = 0;
+    const chunkSize = 200; // Build 200 items per frame to keep browser tab fully responsive
+
+    function renderNext3DChunk() {
+        if (activeRenderId !== current3DRenderId) return;
+
+        const limit = Math.min(currentIndex + chunkSize, renderQueue.length);
+        for (let i = currentIndex; i < limit; i++) {
+            const item = renderQueue[i];
+
+            if (item.type === 'path') {
+                const pathGeo = new THREE.BoxGeometry(0.98, 0.12, 0.98);
+                const pathMat = new THREE.MeshStandardMaterial({ color: 0x5a4537, roughness: 0.95 });
+                const pathTile = new THREE.Mesh(pathGeo, pathMat);
+                pathTile.position.set(item.x, 0.06, item.z);
+                gardenGroup3d.add(pathTile);
+            } else if (item.type === 'crop') {
+                const diameter = item.diameter;
+                const startR = item.startR;
+                const startC = item.startC;
+                
+                const centerX = startC - cols/2 + diameter/2;
+                const centerZ = startR - rows/2 + diameter/2;
+
+                const instanceGroup = new THREE.Group();
+                instanceGroup.name = "cropInstance";
+                instanceGroup.position.set(centerX, 0, centerZ);
+
+                // 1. Wood retaining frame wrapper
+                const frameGeo = new THREE.BoxGeometry(diameter * 0.99, 0.18, diameter * 0.99);
+                const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2b22, roughness: 0.9 });
+                const frame = new THREE.Mesh(frameGeo, frameMat);
+                frame.position.set(0, 0.09, 0);
+                instanceGroup.add(frame);
+
+                // 2. Black soil compost surface
+                const soilGeo = new THREE.BoxGeometry(diameter * 0.94, 0.06, diameter * 0.94);
+                const soilMat = new THREE.MeshStandardMaterial({ color: 0x160f0a, roughness: 0.98 });
+                const soil = new THREE.Mesh(soilGeo, soilMat);
+                soil.position.set(0, 0.18, 0);
+                instanceGroup.add(soil);
+
+                // 3. Center the 3D plant model (realistic or simplified octagonal cone)
+                let plant3d;
+                if (isSimplifiedMode) {
+                    plant3d = buildSimplifiedConeModel(item.cellData.plant, diameter);
+                } else {
+                    plant3d = build3DPlantModel(item.cellData.plant, diameter);
+                }
+                plant3d.position.set(0, 0.20, 0);
+                instanceGroup.add(plant3d);
+
+                // Metadata details
+                const plantData = {
+                    name: item.cellData.plant.name,
+                    type: item.cellData.plant.type,
+                    spread: diameter,
+                    description: item.cellData.plant.description,
+                    sun: item.cellData.plant.sun_requirements,
+                    water: item.cellData.plant.water_requirements,
+                    frame: frame,
+                    soil: soil
+                };
+                
+                instanceGroup.userData = plantData;
+                frame.userData = plantData;
+                soil.userData = plantData;
+                plant3d.userData = plantData;
+
+                gardenGroup3d.add(instanceGroup);
+            }
+        }
+
+        currentIndex = limit;
+        renderer3d.render(scene3d, camera3d);
+
+        if (currentIndex < renderQueue.length) {
+            requestAnimationFrame(renderNext3DChunk);
+        }
+    }
+
+    requestAnimationFrame(renderNext3DChunk);
 }
 
 // Initialize on window load
