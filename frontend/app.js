@@ -1076,6 +1076,7 @@ function initMultiPresets() {
             }
         });
     }
+}
 
 // Function to generate crops from active presets and calculate quantities
 function applySelectedPresets() {
@@ -1191,7 +1192,6 @@ function applySelectedPresets() {
             applySelectedPresets();
         });
     }
-}
 
 // Render Crop Tags in container as editable quantity rows (with climate zone validation warnings)
 function renderCropTags() {
