@@ -175,22 +175,26 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Organic logo container */
 .header-logo-container {
-    position: relative;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 320px;
+    height: 120px; /* Allow it to hang down way below the header! */
+    z-index: 10;
     display: flex;
     align-items: center;
-    height: 72px;
-    padding-left: 60px; /* Space for the leaf tip on the left */
-    z-index: 2;
-    margin-right: -16px;
+    justify-content: flex-end;
+    padding-right: 20px;
+    pointer-events: none; /* Let clicks pass through if they click empty areas */
 }
 
 /* Translucent leaf shape that wraps and flows into the logo */
 .organic-leaf-outline {
     position: absolute;
-    top: -4px;
-    left: -20px;
-    width: 240px;
-    height: 80px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
     z-index: 1;
 }
@@ -198,37 +202,39 @@ h1, h2, h3, h4, h5, h6 {
 .leaf-svg {
     width: 100%;
     height: 100%;
-    filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.12));
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45)) drop-shadow(0 2px 6px rgba(16, 185, 129, 0.15));
 }
 
 /* Wrapper to mask and blend the logo image */
 .logo-image-wrapper {
     position: relative;
-    height: 60px;
-    width: 172px;
+    height: 80px; /* MUCH larger logo! */
+    width: 220px;
+    margin-top: 10px; /* Center it vertically inside the drooping leaf shape */
     z-index: 2;
     overflow: hidden;
-    /* Softly fade the left edge of the logo image into the leaf graphic */
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%);
-    mask-image: linear-gradient(to right, transparent 0%, black 15%);
+    pointer-events: auto; /* Allow hover/interaction with the logo itself */
+    /* Softly fade the left edge of the logo image into the leaf veins */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 20%);
+    mask-image: linear-gradient(to right, transparent 0%, black 20%);
 }
 
 .gama-logo-img {
     height: 100%;
     width: 100%;
-    object-fit: cover;
+    object-fit: contain;
     object-position: right center;
-    border-radius: 0 4px 4px 0;
 }
 
 /* Ambient glow behind the logo */
 .header-organic-glow {
     position: absolute;
-    right: 10px;
-    width: 120px;
-    height: 50px;
-    background: rgba(16, 185, 129, 0.1);
-    filter: blur(15px);
+    right: 20px;
+    bottom: 20px;
+    width: 180px;
+    height: 60px;
+    background: rgba(16, 185, 129, 0.15);
+    filter: blur(25px);
     border-radius: 50%;
     z-index: 0;
     pointer-events: none;
@@ -247,13 +253,16 @@ h1, h2, h3, h4, h5, h6 {
 .main-header {
     background-color: var(--bg-sidebar);
     border-bottom: 1px solid var(--border-color);
-    padding: 20px 32px;
+    padding: 0 32px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+    position: relative;
+    overflow: visible; /* CRITICAL: allow the organic leaf logo container to hang down! */
+    height: 56px; /* Explicit height to keep it thin and consistent */
+    z-index: 100; /* Keep it above content */
 }
-
 .header-title h1 {
     font-size: 24px;
     margin-bottom: 4px;
