@@ -90,7 +90,7 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    flex-grow: 1;
+    margin-bottom: 24px;
 }
 
 .nav-item {
@@ -1774,6 +1774,20 @@ input:focus, select:focus {
     /* Recommendations panel stack */
     .recommendations-panel {
         width: 100%;
+    }
+    .recommendations-panel > div {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    .recommendations-panel .rec-section {
+        border-left: none !important;
+        padding-left: 0 !important;
+        border-top: 1px solid var(--border-color);
+        padding-top: 16px;
+    }
+    .recommendations-panel .rec-section:first-child {
+        border-top: none;
+        padding-top: 0;
     }
 
     /* Presets list */

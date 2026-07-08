@@ -1525,9 +1525,9 @@ function applySelectedPresets(shouldSubmit = true) {
 
     // Aggregate crop allocations case-insensitively
     const aggregatedCrops = {}; // cropName -> { plant, footprint }
-
+    const scaleDenom = Math.max(100, totalPct);
     selectedList.forEach(item => {
-        const ratio = item.pct / totalPct; // relative ratio of this preset
+        const ratio = item.pct / scaleDenom; // relative ratio of this preset, respecting below-100% total coverage
         const presetFootprint = targetFootprint * ratio;
         const cropsList = presetsConfig[item.key] || [];
 
@@ -1743,7 +1743,6 @@ function renderCropTags() {
 
         selectedCropsContainer.appendChild(row);
     });
-    
     // Add Event Listeners to Inputs
     selectedCropsContainer.querySelectorAll('input').forEach(input => {
         input.addEventListener('change', (e) => {
@@ -1760,7 +1759,6 @@ function renderCropTags() {
             }
             
             renderCropTags();
-            submitDesign();
         });
     });
     
@@ -1770,7 +1768,6 @@ function renderCropTags() {
             const idx = parseInt(e.currentTarget.dataset.idx);
             selectedCrops.splice(idx, 1);
             renderCropTags();
-            submitDesign();
         });
     });
 }
@@ -2022,10 +2019,13 @@ async function submitDesign(shouldScroll = false) {
 
             // Render components
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spacing Crops... 0%';
+            updateProgressBar(0, 'Initializing...', true);
             
             const result = await generateLayoutGridAsync(payload.garden_width, payload.garden_height, (pct, plantName) => {
                 submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Spacing: ${pct}% (${plantName})`;
+                updateProgressBar(pct, plantName, true);
             });
+            updateProgressBar(100, 'Done', false);
             
             currentGridArray = result.gridArray;
             placedCenters = result.placedCenters;
@@ -2413,18 +2413,41 @@ function generateLayoutGridAsync(width, height, onProgress) {
         processNextCrop();
     });
 }
+
+function updateProgressBar(pct, plantName, show = true) {
+    const container = document.getElementById('layout-progress-container');
+    const bar = document.getElementById('layout-progress-bar');
+    const status = document.getElementById('layout-progress-status');
+    const percent = document.getElementById('layout-progress-percent');
+    if (!container) return;
+
+    if (show) {
+        container.style.display = 'block';
+        if (bar) bar.style.width = `${pct}%`;
+        if (status) status.textContent = `Spacing: ${plantName}`;
+        if (percent) percent.textContent = `${pct}%`;
+    } else {
+        container.style.display = 'none';
+        if (bar) bar.style.width = `0%`;
+        if (percent) percent.textContent = `0%`;
+    }
+}
+
 async function recalculateLayout() {
     const submitBtn = document.getElementById('btn-submit-design');
     if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spacing Crops... 0%';
     }
+    updateProgressBar(0, 'Initializing...', true);
 
     const result = await generateLayoutGridAsync(currentWidth || 80, currentHeight || 50, (pct, plantName) => {
         if (submitBtn) {
             submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Spacing: ${pct}% (${plantName})`;
         }
+        updateProgressBar(pct, plantName, true);
     });
+    updateProgressBar(100, 'Done', false);
 
     currentGridArray = result.gridArray;
     placedCenters = result.placedCenters;
@@ -3127,6 +3150,34 @@ let selectionBoxEnd2D = new THREE.Vector2();
 let dragPreviewTimeout = null;
 let previewHelpers3D = [];
 
+let canvasResizeObserver = null;
+
+function setupResizeObservers() {
+    if (canvasResizeObserver) return;
+    
+    const container3d = document.getElementById('3d-canvas-container');
+    const viewport2d = document.getElementById('cad-viewport-container');
+    
+    if (typeof ResizeObserver !== 'undefined') {
+        canvasResizeObserver = new ResizeObserver((entries) => {
+            requestAnimationFrame(() => {
+                for (let entry of entries) {
+                    if (entry.target === container3d) {
+                        resize3D();
+                    } else if (entry.target === viewport2d) {
+                        if (viewport2d && !viewport2d.classList.contains('hidden') && currentWidth && currentHeight) {
+                            renderLayoutGrid(currentWidth, currentHeight);
+                        }
+                    }
+                }
+            });
+        });
+        
+        if (container3d) canvasResizeObserver.observe(container3d);
+        if (viewport2d) canvasResizeObserver.observe(viewport2d);
+    }
+}
+
 function resize3D() {
     const container = document.getElementById('3d-canvas-container');
     if (container && renderer3d && camera3d) {
@@ -3142,7 +3193,7 @@ function resize3D() {
     }
 }
 
-// Handle window resize events for both 2D and 3D views
+// Handle window resize events for both 2D and 3D views as fallback
 window.addEventListener('resize', () => {
     resize3D();
     
@@ -4364,6 +4415,7 @@ function update3DLayout(width, height, gridArray) {
 window.addEventListener('load', () => {
     loadPlants();
     initPreferences();
+    setupResizeObservers();
     
     // Fetch system health and git status
     fetch('/api/health')
@@ -4426,12 +4478,7 @@ window.addEventListener('load', () => {
     if (heightInput) heightInput.addEventListener('input', renderCropTags);
     
     // Trigger design refresh immediately on toggling layout distribution
-    const distributeInput = document.getElementById('chk-distribute-layout');
-    if (distributeInput) {
-        distributeInput.addEventListener('change', () => {
-            if (selectedCrops.length > 0) submitDesign();
-        });
-    }
+
 
 
 
@@ -4636,9 +4683,7 @@ window.addEventListener('load', () => {
             }
             updateMethodologyBadges();
             
-            if (selectedCrops.length > 0) {
-                submitDesign();
-            }
+
         });
 
         if (parentItem) {
