@@ -25,11 +25,6 @@ app.add_middleware(
 app.include_router(design.router, prefix="/api/v1", tags=["design"])
 app.include_router(plants.router, prefix="/api/v1", tags=["plants"])
 app.include_router(diagnostics.router, prefix="/api/v1", tags=["diagnostics"])
-
-# Mount static files to serve UI
-from fastapi.staticfiles import StaticFiles
-frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))
-app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 def get_git_info():
     try:
         import subprocess
@@ -57,3 +52,8 @@ def health_check():
         "message": "Welcome to global-agri-mind-ai API",
         "git": get_git_info()
     }
+
+# Mount static files to serve UI at root last
+from fastapi.staticfiles import StaticFiles
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
