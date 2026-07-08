@@ -186,7 +186,15 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
         fruit_color = None
 
         type_lower = plant_type.lower()
-        if "tree" in name_lower or type_lower == "fruit tree":
+        if "paulownia" in name_lower:
+            plant_type = "Fruit Tree"
+            height = 40.0
+            width = 30.0
+            min_rad = 12.0
+            max_rad = 15.0
+            canopy_shape = "rounded"
+            foliage_color = "#4a7c59"
+        elif "tree" in name_lower or type_lower == "fruit tree":
             height = 15.0
             width = 8.0
             min_rad = 3.0

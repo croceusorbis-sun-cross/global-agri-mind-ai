@@ -3,6 +3,8 @@ let allPlants = [];
 let selectedCrops = [];
 let lastDesignResponse = null;
 let disabledAntagonists = new Set();
+let highlightedPlantName = null;
+let active3DHighlightHelpers = [];
 
 // ZIP Code Lookup Mapping
 const zipCodeInfo = {
@@ -411,7 +413,8 @@ function getPlantSVG(plant) {
 
 // Generate unique, stable colors for each plant category using HSL
 function getPlantColor(plantId) {
-    const hue = (plantId * 67) % 360; // 67 step for beautiful separation
+    const id = typeof plantId === 'number' ? plantId : 99;
+    const hue = (id * 67) % 360; // 67 step for beautiful separation
     return {
         background: `hsla(${hue}, 40%, 12%, 0.85)`,
         border: `hsla(${hue}, 50%, 35%, 1)`,
@@ -486,8 +489,9 @@ function updateHeaders(tabId) {
 }
 
 // 3D/2D View Toggle
-const btnLayoutView = document.getElementById('btn-layout-view');
-const btn3dView = document.getElementById('btn-3d-view');
+// 3D/2D View Toggle Segmented Control
+const btnView3D = document.getElementById('btn-view-3d');
+const btnView2D = document.getElementById('btn-view-2d');
 const gardenGrid = document.getElementById('garden-grid');
 const cadViewport = document.getElementById('cad-viewport-container');
 const canvas3dContainer = document.getElementById('3d-canvas-container');
@@ -500,57 +504,415 @@ let is3DMode = true;
 let settingsDimUnit = localStorage.getItem('settingsDimUnit') || 'ft';
 let settingsWeightUnit = localStorage.getItem('settingsWeightUnit') || 'lbs';
 
-btnLayoutView.addEventListener('click', () => {
-    btnLayoutView.classList.add('active');
-    btn3dView.classList.remove('active');
-    cadViewport.classList.remove('hidden');
-    canvas3dContainer.classList.add('hidden');
-    
-    // Deactivate 3D layout edit mode when leaving the 3D viewport
-    if (isEditModeActive) {
-        isEditModeActive = false;
-        const editBtn = document.getElementById('btn-edit-mode');
-        if (editBtn) {
-            editBtn.classList.remove('active');
-            editBtn.innerHTML = '<i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout';
-            editBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-            editBtn.style.color = '';
+function switchViewMode(mode3d) {
+    is3DMode = mode3d;
+    if (is3DMode) {
+        if (btnView3D) btnView3D.classList.add('active');
+        if (btnView2D) btnView2D.classList.remove('active');
+        
+        cadViewport.classList.add('hidden');
+        canvas3dContainer.classList.remove('hidden');
+        
+        init3D();
+        resize3D();
+        trigger3DRender();
+        update3DCompass();
+    } else {
+        if (btnView3D) btnView3D.classList.remove('active');
+        if (btnView2D) btnView2D.classList.add('active');
+        
+        cadViewport.classList.remove('hidden');
+        canvas3dContainer.classList.add('hidden');
+        
+        // Deactivate 3D layout edit mode when leaving the 3D viewport
+        if (isEditModeActive) {
+            isEditModeActive = false;
+            const editBtn = document.getElementById('btn-edit-mode');
+            if (editBtn) {
+                editBtn.classList.remove('active');
+                editBtn.innerHTML = '<i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout';
+                editBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                editBtn.style.color = '';
+            }
+            selectedPlantGroups = [];
+            update3DSelectionHighlights();
         }
-        selectedPlantGroups = [];
+
+        update3DCompass();
+        renderLayoutGrid(currentWidth, currentHeight);
     }
+}
 
-    is3DMode = false;
-    update3DCompass();
-    renderLayoutGrid(currentWidth, currentHeight);
-});
+if (btnView3D) {
+    btnView3D.addEventListener('click', () => switchViewMode(true));
+}
+if (btnView2D) {
+    btnView2D.addEventListener('click', () => switchViewMode(false));
+}
 
-btn3dView.addEventListener('click', () => {
-    btn3dView.classList.add('active');
-    btnLayoutView.classList.remove('active');
-    cadViewport.classList.add('hidden');
-    canvas3dContainer.classList.remove('hidden');
-    
-    init3D();
-    resize3D();
-    trigger3DRender();
+// Sun Path Animation Toggle
+const btnSunAnimate = document.getElementById('btn-sun-animate');
+if (btnSunAnimate) {
+    btnSunAnimate.addEventListener('click', () => {
+        isSunPathActive = !isSunPathActive;
+        isSunAnimationPlaying = isSunPathActive;
+        
+        if (isSunPathActive) {
+            btnSunAnimate.classList.add('active');
+            // Make sure we are in 3D Mode to see the sun path
+            if (!is3DMode) {
+                switchViewMode(true);
+            }
+            drawSunPath(currentWidth || 30, currentHeight || 30);
+            
+            // Adjust camera orbit and zoom out to frame the celestial sun path in view
+            if (camera3d && cameraTarget3d) {
+                const target = cameraTarget3d || new THREE.Vector3(0, 0, 0);
+                const currentDist = camera3d.position.distanceTo(target);
+                const maxDim = Math.max(currentWidth || 30, currentHeight || 30);
+                const newDist = Math.max(currentDist, maxDim * 2.1);
+                
+                // Tilt the camera up (flatter angle) to look at the sky/horizon
+                cameraOrbitAngleX = -Math.PI / 8; // -22.5 degrees (looking towards horizon)
+                
+                // Calculate position relative to target based on cameraOrbitAngleY and cameraOrbitAngleX
+                const x = target.x + newDist * Math.sin(cameraOrbitAngleY) * Math.cos(cameraOrbitAngleX);
+                const y = target.y + newDist * Math.sin(-cameraOrbitAngleX);
+                const z = target.z + newDist * Math.cos(cameraOrbitAngleY) * Math.cos(cameraOrbitAngleX);
+                
+                camera3d.position.set(x, y, z);
+                camera3d.lookAt(target);
+                
+                if (visualsParentGroup) {
+                    visualsParentGroup.rotation.set(cameraOrbitAngleX, cameraOrbitAngleY, 0);
+                }
+                update3DCompass();
+            }
 
-    is3DMode = true;
-    update3DCompass();
-});
+            // Show overlays
+            const solarControls = document.getElementById('3d-solar-controls');
+            const solarClock = document.getElementById('3d-solar-clock');
+            if (solarControls) solarControls.style.display = 'flex';
+            if (solarClock) solarClock.style.display = 'flex';
+        } else {
+            btnSunAnimate.classList.remove('active');
+            // Hide overlays
+            const solarControls = document.getElementById('3d-solar-controls');
+            const solarClock = document.getElementById('3d-solar-clock');
+            if (solarControls) solarControls.style.display = 'none';
+            if (solarClock) solarClock.style.display = 'none';
+
+            // Clear path & sphere
+            if (sunArcLine) {
+                if (visualsParentGroup) visualsParentGroup.remove(sunArcLine);
+                sunArcLine = null;
+            }
+            if (sunSphereMesh) {
+                if (visualsParentGroup) visualsParentGroup.remove(sunSphereMesh);
+                sunSphereMesh = null;
+            }
+            // Reset lights and colors to default static states
+            if (dirLight) {
+                dirLight.position.set(20, 50, 20);
+                dirLight.intensity = 0.75;
+                dirLight.color.setRGB(1.0, 1.0, 1.0);
+                dirLight.castShadow = true;
+            }
+            const ambient = scene3d?.children.find(c => c.isAmbientLight);
+            if (ambient) {
+                ambient.intensity = 0.45;
+            }
+        }
+        
+        // Request a render update to commit changes
+        if (scene3d && camera3d && renderer3d) {
+            renderer3d.render(scene3d, camera3d);
+        }
+    });
+}
+
+// Wire Solar Arc range input slider controls
+const sliderShadowStretch = document.getElementById('slider-shadow-stretch');
+const lblShadowStretch = document.getElementById('lbl-shadow-stretch');
+if (sliderShadowStretch && lblShadowStretch) {
+    sliderShadowStretch.addEventListener('input', (e) => {
+        shadowStretchVal = parseFloat(e.target.value);
+        lblShadowStretch.textContent = `${shadowStretchVal.toFixed(1)}x`;
+    });
+}
+
+const sliderShadowContrast = document.getElementById('slider-shadow-contrast');
+const lblShadowContrast = document.getElementById('lbl-shadow-contrast');
+if (sliderShadowContrast && lblShadowContrast) {
+    sliderShadowContrast.addEventListener('input', (e) => {
+        const valPercent = parseInt(e.target.value);
+        shadowContrastVal = valPercent / 100;
+        lblShadowContrast.textContent = `${valPercent}%`;
+    });
+}
+
+const sliderSunSpeed = document.getElementById('slider-sun-speed');
+const lblSunSpeed = document.getElementById('lbl-sun-speed');
+if (sliderSunSpeed && lblSunSpeed) {
+    sliderSunSpeed.addEventListener('input', (e) => {
+        sunSpeedVal = parseFloat(e.target.value);
+        lblSunSpeed.textContent = `${sunSpeedVal.toFixed(1)}x`;
+    });
+}
 
 function update3DCompass() {
     const needle = document.getElementById('compass-needle');
+    const outerRing = document.getElementById('compass-outer-ring');
+    const angleDisplay = document.getElementById('compass-angle-display');
     if (!needle) return;
 
     if (is3DMode) {
-        let angle = 0;
-        if (gardenGroup3d) {
-            angle = -gardenGroup3d.rotation.y;
+        // Outer Ring shows Environment Cardinal markings: N always points to screenspace North
+        const viewNorthAngleDeg = -cameraOrbitAngleY * 180 / Math.PI;
+        if (outerRing) {
+            outerRing.style.transform = `rotate(${viewNorthAngleDeg}deg)`;
         }
-        needle.style.transform = `rotate(${angle * 180 / Math.PI}deg)`;
+
+        // Needle points to Garden Orientation relative to screenspace: viewNorth + gardenOrientationAngle
+        const needleAngle = viewNorthAngleDeg + gardenOrientationAngle;
+        needle.style.transform = `rotate(${needleAngle}deg)`;
+
+        // Show angle text display
+        if (angleDisplay) {
+            const displayAngle = Math.round((gardenOrientationAngle % 360 + 360) % 360);
+            let cardinalText = "N";
+            if (displayAngle > 22.5 && displayAngle <= 67.5) cardinalText = "NE";
+            else if (displayAngle > 67.5 && displayAngle <= 112.5) cardinalText = "E";
+            else if (displayAngle > 112.5 && displayAngle <= 157.5) cardinalText = "SE";
+            else if (displayAngle > 157.5 && displayAngle <= 202.5) cardinalText = "S";
+            else if (displayAngle > 202.5 && displayAngle <= 247.5) cardinalText = "SW";
+            else if (displayAngle > 247.5 && displayAngle <= 292.5) cardinalText = "W";
+            else if (displayAngle > 292.5 && displayAngle <= 337.5) cardinalText = "NW";
+            angleDisplay.textContent = `Orient: ${displayAngle}° ${cardinalText}`;
+        }
     } else {
         needle.style.transform = 'rotate(0deg)';
+        if (outerRing) outerRing.style.transform = 'rotate(0deg)';
+        if (angleDisplay) angleDisplay.textContent = 'Orient: 0° N';
     }
+}
+function initCompassDrag() {
+    const dial = document.querySelector('.compass-dial');
+    const widget = document.querySelector('.compass-widget');
+    if (!dial || !widget) return;
+
+    let isDraggingDial = false;
+
+    dial.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        isDraggingDial = true;
+        document.body.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDraggingDial) return;
+
+        const rect = widget.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+
+        let angleRad = Math.atan2(dy, dx); // radians
+        let angleDeg = angleRad * 180 / Math.PI;
+
+        // Shift by 90 degrees so that 12 o'clock (North) is 0 degrees
+        let orientationDeg = (angleDeg + 90 + 360) % 360;
+
+        // Calculate physical garden orientation relative to North
+        const viewNorthAngleDeg = -cameraOrbitAngleY * 180 / Math.PI;
+        gardenOrientationAngle = (orientationDeg - viewNorthAngleDeg + 360) % 360;
+
+        // Update gardenGroup3d rotation (negative to rotate clockwise matching compass headings)
+        if (gardenGroup3d) {
+            gardenGroup3d.rotation.y = -gardenOrientationAngle * Math.PI / 180;
+        }
+
+        // Sync 2D CAD North Arrow
+        const cadNorthArrowIcon = document.querySelector('#cad-north-arrow i');
+        if (cadNorthArrowIcon) {
+            cadNorthArrowIcon.style.transform = `rotate(${-gardenOrientationAngle}deg)`;
+        }
+
+        update3DCompass();
+        
+        // Request frame update
+        if (scene3d && camera3d && renderer3d) {
+            renderer3d.render(scene3d, camera3d);
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDraggingDial) {
+            isDraggingDial = false;
+            document.body.style.cursor = '';
+        }
+    });
+}
+
+function update3DSelectionHighlights() {
+    // Clear previous helper meshes
+    selectionHelpers3D.forEach(helper => {
+        scene3d.remove(helper);
+        if (helper.geometry) helper.geometry.dispose();
+        if (helper.material) helper.material.dispose();
+    });
+    selectionHelpers3D = [];
+
+    if (!isEditModeActive || !scene3d) return;
+
+    selectedPlantGroups.forEach(group => {
+        // 1. BoxHelper outline for high perspective visibility
+        const boxHelper = new THREE.BoxHelper(group, 0x34d399);
+        scene3d.add(boxHelper);
+        selectionHelpers3D.push(boxHelper);
+
+        // 2. Glowing ground footprint ring (matches actual plant diameter)
+        const diameter = group.userData.spread || 1;
+        const ringGeo = new THREE.RingGeometry(diameter/2 * 0.96, diameter/2 * 1.04, 32);
+        ringGeo.rotateX(-Math.PI / 2);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x34d399, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.set(group.position.x, 0.04, group.position.z);
+        scene3d.add(ring);
+        selectionHelpers3D.push(ring);
+    });
+}
+
+function getLatitudeFromZip(zipString) {
+    if (!zipString || zipString.length < 5) return 40;
+    const firstDigit = zipString.charAt(0);
+    switch (firstDigit) {
+        case '0': return 42; // Northeast (NJ/NY/MA/ME/VT/NH)
+        case '1': return 41; // NY/PA/DE
+        case '2': return 37; // MD/VA/NC/SC/WV
+        case '3': return 31; // FL/GA/AL/MS/TN
+        case '4': return 42; // MI/OH/IN/KY
+        case '5': return 45; // WI/MN/ND/SD/MT/IA
+        case '6': return 40; // IL/MO/KS/NE
+        case '7': return 32; // TX/OK/AR/LA
+        case '8': return 38; // CO/WY/ID/UT/NV/AZ/NM
+        case '9': return 38; // CA/OR/WA/AK/HI
+        default: return 40;
+    }
+}
+
+function createStaticEnvironmentNorthArrow(radius) {
+    const group = new THREE.Group();
+    group.name = "envCompassRose";
+    
+    // 1. Outer Ring
+    const ringGeo = new THREE.RingGeometry(radius * 0.98, radius * 1.02, 64);
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x334155, // slate-700
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    group.add(ring);
+
+    // 2. North Pointer (triangle pointing North towards -Z)
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(0, radius * 1.08); // Tip pointing North
+    arrowShape.lineTo(radius * 0.08, radius * 0.96);
+    arrowShape.lineTo(-radius * 0.08, radius * 0.96);
+    arrowShape.lineTo(0, radius * 1.08);
+    
+    const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+    arrowGeo.rotateX(-Math.PI / 2);
+    const arrowMat = new THREE.MeshBasicMaterial({
+        color: 0xef4444, // Red North arrow
+        transparent: true,
+        opacity: 0.65,
+        side: THREE.DoubleSide
+    });
+    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    group.add(arrow);
+
+    // 3. Central crosshairs (North-South, East-West lines)
+    const lineMat = new THREE.LineBasicMaterial({
+        color: 0x334155,
+        transparent: true,
+        opacity: 0.2
+    });
+    
+    const nsPoints = [new THREE.Vector3(0, 0.01, -radius), new THREE.Vector3(0, 0.01, radius)];
+    const nsGeo = new THREE.BufferGeometry().setFromPoints(nsPoints);
+    const nsLine = new THREE.Line(nsGeo, lineMat);
+    group.add(nsLine);
+
+    const ewPoints = [new THREE.Vector3(-radius, 0.01, 0), new THREE.Vector3(radius, 0.01, 0)];
+    const ewGeo = new THREE.BufferGeometry().setFromPoints(ewPoints);
+    const ewLine = new THREE.Line(ewGeo, lineMat);
+    group.add(ewLine);
+
+    return group;
+}
+
+function drawSunPath(width, height) {
+    // Clear old sun path if they exist
+    if (sunArcLine) {
+        if (visualsParentGroup) visualsParentGroup.remove(sunArcLine);
+        if (sunArcLine.geometry) sunArcLine.geometry.dispose();
+        if (sunArcLine.material) sunArcLine.material.dispose();
+        sunArcLine = null;
+    }
+    if (sunSphereMesh) {
+        if (visualsParentGroup) visualsParentGroup.remove(sunSphereMesh);
+        if (sunSphereMesh.geometry) sunSphereMesh.geometry.dispose();
+        if (sunSphereMesh.material) sunSphereMesh.material.dispose();
+        sunSphereMesh = null;
+    }
+
+    if (!isSunPathActive || !scene3d || !visualsParentGroup) return;
+
+    const zipInput = document.getElementById('input-zip')?.value || "48195";
+    const latitude = getLatitudeFromZip(zipInput);
+    const latRad = latitude * Math.PI / 180;
+    
+    const radius = Math.max(width, height) * 1.5; // Radius scaled to garden size!
+    const arcPoints = [];
+
+    // Arc from sunrise (t=0) to sunset (t=PI)
+    for (let t = 0; t <= Math.PI + 0.01; t += 0.05) {
+        const x = -radius * Math.cos(t);
+        const y = radius * Math.sin(t) * Math.cos(latRad);
+        const z = radius * Math.sin(t) * Math.sin(latRad); // Deflect towards South (+Z)
+        arcPoints.push(new THREE.Vector3(x, y, z));
+    }
+
+    const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
+    const arcMat = new THREE.LineDashedMaterial({
+        color: 0xf59e0b,
+        dashSize: 1.5,
+        gapSize: 0.8,
+        transparent: true,
+        opacity: 0.6
+    });
+    sunArcLine = new THREE.Line(arcGeo, arcMat);
+    sunArcLine.computeLineDistances();
+    visualsParentGroup.add(sunArcLine);
+
+    // Sun Sphere
+    const sunGeo = new THREE.SphereGeometry(radius * 0.04, 16, 16);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+    sunSphereMesh = new THREE.Mesh(sunGeo, sunMat);
+    
+    // Position at noon initially (t = PI / 2)
+    const initX = 0;
+    const initY = radius * Math.cos(latRad);
+    const initZ = radius * Math.sin(latRad);
+    sunSphereMesh.position.set(initX, initY, initZ);
+    visualsParentGroup.add(sunSphereMesh);
 }
 
 // Load Plants on initialization
@@ -748,7 +1110,8 @@ function addCropTag(plant) {
         ...plant,
         quantity: defaultQty,
         yield: defaultQty * yieldPer,
-        yieldPerPlant: yieldPer
+        yieldPerPlant: yieldPer,
+        manuallyAdded: true
     });
     renderCropTags();
 }
@@ -891,22 +1254,99 @@ const presetDescriptions = {
 };
 
 // Initialize multi-select presets UI logic
+// Function to update Selected Presets Badge Pills (Creative and Space-saving)
+function updatePresetBadges() {
+    const container = document.getElementById('presets-badges-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const presetCards = document.querySelectorAll('.custom-dropdown-menu#presets-dropdown-menu .preset-card');
+    const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
+    
+    if (activeCards.length === 0) {
+        document.getElementById('presets-dropdown-placeholder').textContent = "Select Allocation Plans...";
+        return;
+    }
+    
+    document.getElementById('presets-dropdown-placeholder').textContent = `${activeCards.length} Plan(s) Selected`;
+    
+    activeCards.forEach(c => {
+        const labelText = c.querySelector('span').textContent;
+        const pctInput = c.querySelector('.preset-pct');
+        const pctVal = pctInput ? pctInput.value : 50;
+        
+        const pill = document.createElement('div');
+        pill.className = 'selected-pill';
+        pill.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(16,185,129,0.12); border: 1px solid var(--accent-emerald); color: var(--text-primary); border-radius: 12px; font-size: 11px; font-weight: 600; box-shadow: var(--shadow-sm);';
+        
+        pill.innerHTML = `
+            <span>${labelText}</span>
+            <input type="number" class="preset-pill-pct" value="${pctVal}" min="5" max="100" style="width: 38px; height: 16px; padding: 0 2px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); color: #fff; font-size: 10px; border-radius: var(--radius-sm); box-sizing: border-box;">
+            <span style="font-size: 9px; color: var(--text-secondary); margin-left:-2px;">%</span>
+            <i class="fa-solid fa-circle-xmark remove-pill" style="cursor: pointer; opacity: 0.7; font-size: 12px; margin-left: 2px;"></i>
+        `;
+        
+        // Sync pill input value back to dropdown input
+        const pillInput = pill.querySelector('.preset-pill-pct');
+        if (pctInput && pillInput) {
+            pillInput.addEventListener('input', (e) => {
+                pctInput.value = e.target.value;
+                pctInput.dispatchEvent(new Event('input'));
+                if (!isAutoBalanceEnabled) {
+                    applySelectedPresets();
+                }
+            });
+        }
+        
+        // Remove pill handler
+        pill.querySelector('.remove-pill').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cb = c.querySelector('.preset-toggle');
+            if (cb) {
+                cb.checked = false;
+                cb.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        container.appendChild(pill);
+    });
+}
+
 function initMultiPresets() {
-    const presetCards = document.querySelectorAll('.preset-card');
+    const selectBox = document.getElementById('presets-dropdown-select');
+    const menu = document.getElementById('presets-dropdown-menu');
+    const presetCards = menu.querySelectorAll('.preset-card');
     const popover = document.getElementById('presets-popover');
     const popoverTitle = document.getElementById('presets-popover-title');
     const popoverDesc = document.getElementById('presets-popover-desc');
     const popoverPlants = document.getElementById('presets-popover-plants');
     const popoverClose = document.getElementById('presets-popover-close');
 
-    if (presetCards.length === 0) return;
+    if (!selectBox || !menu) return;
+
+    // Toggle dropdown open/close
+    selectBox.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = menu.style.display === 'block';
+        menu.style.display = isOpen ? 'none' : 'block';
+        // Close methodologies dropdown if open
+        const otherMenu = document.getElementById('methods-dropdown-menu');
+        if (otherMenu) otherMenu.style.display = 'none';
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#presets-dropdown-container')) {
+            menu.style.display = 'none';
+        }
+        if (popover && !popover.contains(e.target) && !e.target.closest('.custom-option-item')) {
+            popover.style.display = 'none';
+        }
+    });
 
     let activeHoveredPreset = null;
-    let isPresetPopoverPinned = false;
 
-    const showPresetPopover = (presetKey, card) => {
+    const showPresetPopover = (presetKey, itemEl) => {
         const details = presetDescriptions[presetKey];
-        if (popover && details && card) {
+        if (popover && details && itemEl) {
             popoverTitle.textContent = details.title;
             popoverDesc.textContent = details.desc;
             
@@ -920,66 +1360,32 @@ function initMultiPresets() {
                 li.textContent = `${c.query} (${Math.round(c.weight * 100)}%)`;
                 popoverPlants.appendChild(li);
             });
-
-            // Set fixed layout and positioning coordinates
+            
             popover.style.display = 'block';
             popover.style.position = 'fixed';
-            popover.style.left = '0px';
-            popover.style.top = '0px';
             
-            const rect = card.getBoundingClientRect();
-            const popoverWidth = popover.offsetWidth;
-            const popoverHeight = popover.offsetHeight;
+            const rect = itemEl.getBoundingClientRect();
+            let leftPos = rect.right + 12;
             
-            // Center horizontally relative to preset card
-            let leftPos = rect.left + rect.width / 2 - popoverWidth / 2;
-            leftPos = Math.max(16, Math.min(window.innerWidth - popoverWidth - 16, leftPos));
-            
-            // Try placing below the card by default
-            let topPos = rect.bottom + 8;
-            // Auto-Flip: if placing below overflows the screen bottom, place it above the card instead
-            if (topPos + popoverHeight > window.innerHeight - 16) {
-                topPos = rect.top - popoverHeight - 8;
+            if (leftPos + popover.offsetWidth > window.innerWidth - 16) {
+                leftPos = rect.left - popover.offsetWidth - 12;
             }
-
+            
+            let topPos = rect.top;
+            if (topPos + popover.offsetHeight > window.innerHeight - 16) {
+                topPos = window.innerHeight - popover.offsetHeight - 16;
+            }
+            
             popover.style.left = leftPos + 'px';
             popover.style.top = topPos + 'px';
-
+            
             requestAnimationFrame(() => {
                 popover.style.opacity = '1';
-                popover.style.transform = 'translateY(0)';
+                popover.style.transform = 'translateX(0)';
             });
         }
     };
 
-    const hidePresetPopover = () => {
-        if (popover && !isPresetPopoverPinned) {
-            popover.style.opacity = '0';
-            popover.style.transform = 'translateX(-10px)';
-            setTimeout(() => {
-                if (!isPresetPopoverPinned && popover.style.opacity === '0') {
-                    popover.style.display = 'none';
-                }
-            }, 200);
-            activeHoveredPreset = null;
-        }
-    };
-
-    if (popoverClose) {
-        popoverClose.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isPresetPopoverPinned = false;
-            hidePresetPopover();
-        });
-    }
-
-    document.addEventListener('click', (e) => {
-        if (isPresetPopoverPinned && popover && !popover.contains(e.target) && !e.target.closest('.preset-card')) {
-            isPresetPopoverPinned = false;
-            hidePresetPopover();
-        }
-    });
-    
     presetCards.forEach(card => {
         const checkbox = card.querySelector('.preset-toggle');
         const pctContainer = card.querySelector('.preset-pct-container');
@@ -989,12 +1395,10 @@ function initMultiPresets() {
         checkbox.addEventListener('change', (e) => {
             e.stopPropagation();
             if (checkbox.checked) {
-                card.style.background = 'rgba(16, 185, 129, 0.05)';
-                card.style.borderColor = 'var(--accent-emerald)';
+                card.style.background = 'rgba(16, 185, 129, 0.08)';
                 if (pctContainer) pctContainer.style.display = 'flex';
             } else {
-                card.style.background = 'rgba(255, 255, 255, 0.02)';
-                card.style.borderColor = 'var(--border-color)';
+                card.style.background = 'transparent';
                 if (pctContainer) pctContainer.style.display = 'none';
             }
             
@@ -1012,36 +1416,28 @@ function initMultiPresets() {
                     });
                 }
             }
+            updatePresetBadges();
         });
 
         // Hover events
         card.addEventListener('mouseenter', () => {
-            if (isPresetPopoverPinned) return;
             activeHoveredPreset = presetKey;
             showPresetPopover(presetKey, card);
         });
 
         card.addEventListener('mouseleave', () => {
-            if (isPresetPopoverPinned) return;
-            hidePresetPopover();
+            if (popover) {
+                popover.style.opacity = '0';
+                popover.style.display = 'none';
+            }
+            activeHoveredPreset = null;
         });
 
-        // Click card toggles checkbox and pins popover details
+        // Click card toggles checkbox
         card.addEventListener('click', (e) => {
             if (e.target.closest('.preset-toggle') || e.target.closest('.preset-pct')) return;
             checkbox.checked = !checkbox.checked;
             checkbox.dispatchEvent(new Event('change'));
-
-            activeHoveredPreset = presetKey;
-            isPresetPopoverPinned = true;
-            showPresetPopover(presetKey, card);
-
-            if (popover) {
-                popover.style.borderColor = '#10b981';
-                setTimeout(() => {
-                    if (isPresetPopoverPinned) popover.style.borderColor = 'var(--accent-emerald)';
-                }, 300);
-            }
         });
     });
 
@@ -1069,6 +1465,7 @@ function initMultiPresets() {
                         }
                     });
                 }
+                updatePresetBadges();
             } else {
                 btnNormalize.style.background = 'rgba(255, 255, 255, 0.02)';
                 btnNormalize.style.borderColor = 'var(--border-color)';
@@ -1076,10 +1473,25 @@ function initMultiPresets() {
             }
         });
     }
-}
 
+    // Scroll listener to update popover dynamically during wheel scroll
+    menu.addEventListener('scroll', () => {
+        const items = menu.querySelectorAll('.custom-option-item');
+        items.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            if (window.mouseX >= rect.left && window.mouseX <= rect.right &&
+                window.mouseY >= rect.top && window.mouseY <= rect.bottom) {
+                const key = item.dataset.preset;
+                if (activeHoveredPreset !== key) {
+                    activeHoveredPreset = key;
+                    showPresetPopover(key, item);
+                }
+            }
+        });
+    });
+}
 // Function to generate crops from active presets and calculate quantities
-function applySelectedPresets() {
+function applySelectedPresets(shouldSubmit = true) {
     const presetCards = document.querySelectorAll('.preset-card');
     const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
     const errMsg = document.getElementById('presets-error-msg');
@@ -1166,9 +1578,16 @@ function applySelectedPresets() {
         });
     }
 
-    // Set as active selections
-    selectedCrops = [];
+    // Set as active selections, preserving manually added ones
+    const manualCrops = selectedCrops.filter(c => c.manuallyAdded);
+    selectedCrops = [...manualCrops];
+    
     rawItems.forEach(item => {
+        // Skip adding preset crop if it's already in the manual crops list to avoid duplication
+        if (selectedCrops.some(sc => sc.id === item.plant.id)) {
+            return;
+        }
+        
         let yieldPer = getYieldPerPlant(item.plant);
         if (settingsWeightUnit === 'kg') {
             yieldPer = yieldPer * 0.453592;
@@ -1180,8 +1599,10 @@ function applySelectedPresets() {
             yieldPerPlant: yieldPer
         });
     });
-
     renderCropTags();
+    if (shouldSubmit) {
+        submitDesign();
+    }
     return true;
 }
 
@@ -1285,8 +1706,16 @@ function renderCropTags() {
 
         const row = document.createElement('div');
         row.className = 'crop-quantity-row';
+        row.dataset.plantName = crop.name;
+        
+        if (highlightedPlantName === crop.name) {
+            row.classList.add('active-highlight');
+            row.style.border = '2px solid #eab308';
+            row.style.boxShadow = '0 0 10px rgba(234, 179, 8, 0.4)';
+        }
+
         row.innerHTML = `
-            <div class="crop-info">
+            <div class="crop-info" style="cursor: pointer; flex: 1;">
                 <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
                     <strong class="crop-name">${crop.name}</strong>
                     ${zoneWarningHtml}
@@ -1305,6 +1734,13 @@ function renderCropTags() {
             </div>
             <button class="remove-crop-row-btn" data-idx="${index}"><i class="fa-solid fa-trash"></i></button>
         `;
+        
+        const infoDiv = row.querySelector('.crop-info');
+        infoDiv.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleCropHighlight(crop.name);
+        });
+
         selectedCropsContainer.appendChild(row);
     });
     
@@ -1339,12 +1775,176 @@ function renderCropTags() {
     });
 }
 
-// Submit Design Request
+function toggleCropHighlight(plantName) {
+    if (highlightedPlantName === plantName) {
+        highlightedPlantName = null;
+    } else {
+        highlightedPlantName = plantName;
+    }
+    
+    // 1. Update crop tags active borders
+    document.querySelectorAll('.crop-quantity-row').forEach(row => {
+        const pName = row.dataset.plantName;
+        if (pName === highlightedPlantName) {
+            row.classList.add('active-highlight');
+            row.style.border = '2px solid #eab308';
+            row.style.boxShadow = '0 0 10px rgba(234, 179, 8, 0.4)';
+        } else {
+            row.classList.remove('active-highlight');
+            row.style.border = '';
+            row.style.boxShadow = '';
+        }
+    });
+
+    // 2. Update 2D grid cell gold outlines
+    document.querySelectorAll('.grid-cell.crop').forEach(cell => {
+        const cellData = currentGridArray?.[parseInt(cell.dataset.instanceId?.split('_')[1])]?.[parseInt(cell.dataset.instanceId?.split('_')[2])];
+        const pName = cell.dataset.plantName || (cellData && cellData.plant && cellData.plant.name);
+        
+        if (highlightedPlantName && pName === highlightedPlantName) {
+            cell.classList.add('gold-highlight-2d');
+            cell.style.outline = '3px solid #eab308';
+            cell.style.outlineOffset = '-3px';
+            cell.style.boxShadow = '0 0 12px rgba(234, 179, 8, 0.8)';
+            cell.style.zIndex = '5';
+        } else {
+            cell.classList.remove('gold-highlight-2d');
+            cell.style.outline = '';
+            cell.style.outlineOffset = '';
+            cell.style.boxShadow = '';
+            cell.style.zIndex = '';
+        }
+    });
+
+    // 3. Update 3D wireframe outline helpers
+    update3DHighlights();
+}
+
+function update3DHighlights() {
+    if (!scene3d || !gardenGroup3d) return;
+
+    // Dispose old highlight wireframes
+    active3DHighlightHelpers.forEach(helper => {
+        scene3d.remove(helper);
+        if (helper.geometry) helper.geometry.dispose();
+        if (helper.material) helper.material.dispose();
+    });
+    active3DHighlightHelpers = [];
+
+    if (!highlightedPlantName) {
+        return;
+    }
+
+    // Add gold BoxHelper to each matching 3D cropInstance group
+    gardenGroup3d.traverse(node => {
+        if (node.name === "cropInstance" && node.userData && node.userData.name === highlightedPlantName) {
+            const helper = new THREE.BoxHelper(node, 0xeab308);
+            helper.name = "highlightHelper";
+            
+            if (helper.material) {
+                helper.material.transparent = true;
+                helper.material.opacity = 0.8;
+                helper.material.depthWrite = false;
+                helper.material.linewidth = 2.5;
+            }
+            
+            scene3d.add(helper);
+            active3DHighlightHelpers.push(helper);
+        }
+    });
+}
+
 async function submitDesign(shouldScroll = false) {
     shouldResetCamera3D = true;
+    
+    // Auto-apply selected presets to ensure they are synchronized with the design request
+    applySelectedPresets(false);
+
     if (selectedCrops.length === 0) {
         alert("Please search and add at least one crop to design your garden!");
         return;
+    }
+
+    // Over-Capacity Resolution Logic
+    const resolutionMode = document.getElementById('select-overcapacity')?.value || 'none';
+    if (resolutionMode === 'scale-down') {
+        const wInputVal = parseFloat(document.getElementById('input-width').value) || 20;
+        const hInputVal = parseFloat(document.getElementById('input-height').value) || 30;
+        const wFt = settingsDimUnit === 'm' ? wInputVal / 0.3048 : wInputVal;
+        const hFt = settingsDimUnit === 'm' ? hInputVal / 0.3048 : hInputVal;
+        const totalArea = wFt * hFt;
+        const targetFootprint = totalArea * 0.8;
+
+        let totalFootprint = selectedCrops.reduce((sum, c) => sum + (c.quantity * getPlantDiameter(c) * getPlantDiameter(c)), 0);
+        if (totalFootprint > targetFootprint) {
+            const scale = targetFootprint / totalFootprint;
+            selectedCrops.forEach(c => {
+                if (c.manuallyAdded) {
+                    c.quantity = Math.max(1, Math.floor(c.quantity * scale));
+                } else {
+                    c.quantity = Math.floor(c.quantity * scale);
+                }
+                c.yield = c.quantity * c.yieldPerPlant;
+            });
+            selectedCrops = selectedCrops.filter(c => c.quantity > 0);
+            renderCropTags();
+        }
+    } else if (resolutionMode === 'expand') {
+        const widthInput = document.getElementById('input-width');
+        const heightInput = document.getElementById('input-height');
+        if (widthInput && heightInput) {
+            const wInputVal = parseFloat(widthInput.value) || 20;
+            const hInputVal = parseFloat(heightInput.value) || 30;
+            let wFt = settingsDimUnit === 'm' ? wInputVal / 0.3048 : wInputVal;
+            let hFt = settingsDimUnit === 'm' ? hInputVal / 0.3048 : hInputVal;
+
+            let maxDiameter = 0;
+            let totalFootprint = 0;
+            selectedCrops.forEach(c => {
+                const diam = getPlantDiameter(c);
+                if (diam > maxDiameter) maxDiameter = diam;
+                totalFootprint += (c.quantity || 1) * diam * diam;
+            });
+
+            const targetArea = totalFootprint / 0.8;
+
+            if (wFt < maxDiameter) wFt = maxDiameter;
+            if (hFt < maxDiameter) hFt = maxDiameter;
+
+            while (wFt * hFt < targetArea) {
+                wFt += 2;
+                hFt += 2;
+            }
+
+            const wTarget = settingsDimUnit === 'm' ? Math.round(wFt * 0.3048 * 2) / 2 : Math.round(wFt);
+            const hTarget = settingsDimUnit === 'm' ? Math.round(hFt * 0.3048 * 2) / 2 : Math.round(hFt);
+
+            if (wTarget !== wInputVal || hTarget !== hInputVal) {
+                widthInput.value = wTarget;
+                heightInput.value = hTarget;
+                
+                // Re-sync metrics display labels immediately
+                const area = wTarget * hTarget;
+                const plantArea = Math.round(area * 0.8);
+                const pathsArea = Math.round(area * 0.2);
+                
+                if (settingsDimUnit === 'm') {
+                    const totalHa = (area / 10000).toFixed(4);
+                    const plantHa = (plantArea / 10000).toFixed(4);
+                    const pathsHa = (pathsArea / 10000).toFixed(4);
+                    document.getElementById('lbl-total-area').textContent = `${area.toFixed(1)} sq m (${totalHa} ha)`;
+                    document.getElementById('lbl-planting-area').textContent = `${plantArea.toFixed(1)} sq m (${plantHa} ha)`;
+                    document.getElementById('lbl-paths-area').textContent = `${pathsArea.toFixed(1)} sq m (${pathsHa} ha)`;
+                } else {
+                    document.getElementById('lbl-total-area').textContent = `${area} sq ft`;
+                    document.getElementById('lbl-planting-area').textContent = `${plantArea} sq ft`;
+                    document.getElementById('lbl-paths-area').textContent = `${pathsArea} sq ft`;
+                }
+
+                // Re-trigger layout capacity updates
+                renderCropTags();
+            }
+        }
     }
 
     const submitBtn = document.getElementById('btn-submit-design');
@@ -1421,7 +2021,21 @@ async function submitDesign(shouldScroll = false) {
             document.getElementById('stat-warnings').textContent = lastDesignResponse.antagonists.length;
 
             // Render components
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spacing Crops... 0%';
+            
+            const result = await generateLayoutGridAsync(payload.garden_width, payload.garden_height, (pct, plantName) => {
+                submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Spacing: ${pct}% (${plantName})`;
+            });
+            
+            currentGridArray = result.gridArray;
+            placedCenters = result.placedCenters;
+            currentWidth = payload.garden_width;
+            currentHeight = payload.garden_height;
+            
+            isManualEdit = true;
             renderLayoutGrid(payload.garden_width, payload.garden_height);
+            isManualEdit = false;
+            
             renderRecommendations();
             renderCalendarTimeline();
             updateBenefitsSection();
@@ -1441,7 +2055,7 @@ async function submitDesign(shouldScroll = false) {
             alert("Error designing garden. Please verify parameters.");
         }
     } catch (e) {
-        alert("Failed to connect to backend server. Make sure FastAPI is running.");
+        alert("Failed to design: " + e.message + "\n" + e.stack);
         console.error(e);
     } finally {
         submitBtn.disabled = false;
@@ -1456,6 +2070,7 @@ function getPlantDiameter(plant) {
     }
     const name = plant.name.toLowerCase();
     
+    if (name.includes("paulownia")) return 30; // True width: 30 ft
     if (name.includes("tree")) return 8;       // Large fruit trees: 8x8 ft
     if (name.includes("sunflower")) return 4;  // Sunflowers: 4x4 ft
     if (name.includes("squash") || name.includes("zucchini") || name.includes("pumpkin") || name.includes("melon") || name.includes("watermelon")) return 4; // Sprawling: 4x4 ft
@@ -1472,6 +2087,7 @@ function getPlantHeight(plant) {
     const name = plant.name.toLowerCase();
     const category = plant.type ? plant.type.toLowerCase() : "";
     
+    if (name.includes("paulownia")) return 40; // True height: 40 ft
     if (name.includes("tree") || category.includes("tree")) return 15;        // Tall fruit trees: 15 ft
     if (name.includes("sunflower")) return 8;                                 // Sunflowers: 8 ft
     if (name.includes("tomato") || name.includes("cucumber")) return 6;        // Vines / staked climbing crops: 6 ft
@@ -1481,54 +2097,14 @@ function getPlantHeight(plant) {
 
 let zoomScale = 1.0;
 
-// Generate Layout Grid Layout with Growth Spacing and Diameter Scaling
-function renderLayoutGrid(width, height) {
-    const isDistributed = document.getElementById('chk-distribute-layout')?.checked || false;
-    gardenGrid.innerHTML = '';
-    
-    // Grid cells represent 1x1 ft space
-    const cols = Math.round(width);
-    const rows = Math.round(height);
-    
-    document.getElementById('grid-dim-text').textContent = `${width} ft x ${height} ft (1 cell = 1 sq ft)`;
-
-    // Set dynamic base cell size to fit the entire layout inside the viewport on startup
-    const scrollPane = document.getElementById('layout-scroll-pane');
-    const paneWidth = scrollPane ? scrollPane.clientWidth : 600;
-    const paneHeight = scrollPane ? scrollPane.clientHeight : 480;
-
-    // Minimum 2px per cell to prevent invisible layouts at extreme farm scales
-    const fitCellSize = Math.max(2, Math.min((paneWidth - 20) / cols, (paneHeight - 20) / rows));
-    const currentCellSize = fitCellSize * zoomScale;
-
-    gardenGrid.style.width = `${cols * currentCellSize}px`;
-    gardenGrid.style.height = `${rows * currentCellSize}px`;
-    gardenGrid.style.display = 'grid';
-
-    gardenGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    gardenGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-
-    // Initialize 2D grid array representing layout space
-    let gridArray;
-    let placedCenters = [];
-
-    if (isManualEdit && currentGridArray) {
-        gridArray = currentGridArray;
-        // Re-populate placedCenters from gridArray for secondary calculations
-        const placedSet = new Set();
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const cell = gridArray[r][c];
-                if (cell && cell.type === 'crop' && !placedSet.has(cell.instanceId)) {
-                    placedSet.add(cell.instanceId);
-                    const centerR = cell.startR + cell.diameter / 2;
-                    const centerC = cell.startC + cell.diameter / 2;
-                    placedCenters.push({ r: centerR, c: centerC, plantName: cell.plant.name });
-                }
-            }
-        }
-    } else {
-        gridArray = Array(rows).fill(null).map(() => Array(cols).fill(null));
+function generateLayoutGridAsync(width, height, onProgress) {
+    return new Promise((resolve) => {
+        const isDistributed = document.getElementById('chk-distribute-layout')?.checked || false;
+        const cols = Math.round(width);
+        const rows = Math.round(height);
+        
+        let gridArray = Array(rows).fill(null).map(() => Array(cols).fill(null));
+        let placedCenters = [];
 
         const isMiyawaki = document.getElementById('chk-method-miyawaki')?.checked || false;
         const isSyntropic = document.getElementById('chk-method-syntropic')?.checked || false;
@@ -1563,248 +2139,356 @@ function renderLayoutGrid(width, height) {
             return getPlantDiameter(b) - getPlantDiameter(a);  // Largest diameter first
         });
 
-    // 3. Scan and place instances of crops with antagonist separation, companion attraction, and dynamic spacing buffers
-    sortedCrops.forEach(plant => {
-        const diameter = getPlantDiameter(plant);
-        let placeDiameter = diameter;
-        
-        // Miyawaki and Direct Seeding enable high-density packing
-        if (isMiyawaki || isDirectSeeding) {
-            placeDiameter = Math.max(1, Math.floor(diameter * 0.7));
-        }
+        let cropIndex = 0;
 
-        let targetCount = plant.quantity || 1;
+        function processNextCrop() {
+            if (cropIndex >= sortedCrops.length) {
+                resolve({ gridArray, placedCenters });
+                return;
+            }
 
-        // Determine starting spacing buffer: try to space out plants of the same type if isDistributed is active
-        let spacingBuffer = 0;
-        if (isDistributed && !isMiyawaki && !isDirectSeeding) {
-            if (diameter >= 8) spacingBuffer = 4;
-            else if (diameter >= 3) spacingBuffer = 2;
-            else if (diameter >= 2) spacingBuffer = 2;
-            else spacingBuffer = 1;
-        }
+            const plant = sortedCrops[cropIndex];
+            if (onProgress) {
+                const pct = Math.round((cropIndex / sortedCrops.length) * 100);
+                onProgress(pct, plant.name);
+            }
 
-        let success = false;
-        let cropPlacedCenters = [];
+            const companionsSet = new Set();
+            if (lastDesignResponse && lastDesignResponse.companions) {
+                lastDesignResponse.companions.forEach(c => {
+                    if (c.plant === plant.name) companionsSet.add(c.companion);
+                    if (c.companion === plant.name) companionsSet.add(c.plant);
+                });
+            }
 
-        // Try to place all instances of this crop with the current spacingBuffer.
-        // If it doesn't fit, decrement the spacingBuffer and retry until it fits (down to 0, which is compact).
-        while (!success && spacingBuffer >= 0) {
-            cropPlacedCenters = [];
+            const antagonistsSet = new Set();
+            if (lastDesignResponse && lastDesignResponse.antagonists) {
+                lastDesignResponse.antagonists.forEach(a => {
+                    if (a.plant === plant.name) antagonistsSet.add(a.antagonist);
+                    if (a.antagonist === plant.name) antagonistsSet.add(a.plant);
+                });
+            }
+
+            const diameter = getPlantDiameter(plant);
+            let placeDiameter = diameter;
+            
+            if (isMiyawaki || isDirectSeeding) {
+                placeDiameter = Math.max(1, Math.floor(diameter * 0.7));
+            }
+            let targetCount = plant.quantity || 1;
+
+            let spacingBuffer = 0;
+            if (isDistributed && !isMiyawaki && !isDirectSeeding) {
+                if (diameter >= 8) spacingBuffer = 4;
+                else if (diameter >= 3) spacingBuffer = 2;
+                else if (diameter >= 2) spacingBuffer = 2;
+                else spacingBuffer = 1;
+            }
+
+            let cropPlacedCenters = [];
             let tempGrid = Array(rows).fill(null).map((_, r) => [...gridArray[r]]);
             let tempPlacedCenters = [...placedCenters];
             let placedCount = 0;
-            let failed = false;
 
-            for (let i = 0; i < targetCount; i++) {
-                // Find all candidates where this plant size can physically fit
-                let candidates = [];
-                for (let r = 0; r <= rows - placeDiameter; r++) {
-                    for (let c = 0; c <= cols - placeDiameter; c++) {
-                        let clear = true;
-                        for (let dr = 0; dr < placeDiameter; dr++) {
-                            for (let dc = 0; dc < placeDiameter; dc++) {
-                                const cell = tempGrid[r + dr][c + dc];
-                                if (cell !== null) {
-                                    if (isFoodForest) {
-                                        // Food Forest Permaculture: Allow small understory crops to grow under tall tree canopy
-                                        const isUnderstory = (placeDiameter <= 1.5 && getPlantHeight(plant) <= 2.5);
-                                        const isOverheadTree = (cell.type === 'crop' && (cell.plant.type === 'Fruit Tree' || getPlantHeight(cell.plant) >= 12));
-                                        if (isUnderstory && isOverheadTree) {
-                                            // Allow overlap
+            function placeInstancesStep() {
+                const batchLimit = Math.min(placedCount + 20, targetCount);
+                let failed = false;
+
+                for (let i = placedCount; i < batchLimit; i++) {
+                    let candidates = [];
+                    for (let r = 0; r <= rows - placeDiameter; r++) {
+                        for (let c = 0; c <= cols - placeDiameter; c++) {
+                            let clear = true;
+                            for (let dr = 0; dr < placeDiameter; dr++) {
+                                for (let dc = 0; dc < placeDiameter; dc++) {
+                                    const cell = tempGrid[r + dr][c + dc];
+                                    if (cell !== null) {
+                                        const isLargePlant = (plant.type === 'Fruit Tree' || getPlantHeight(plant) >= 12 || diameter >= 6);
+                                        if (cell.type === 'path' && isLargePlant) {
+                                            // OK
+                                        } else if (isFoodForest) {
+                                            const isUnderstory = (placeDiameter <= 1.5 && getPlantHeight(plant) <= 2.5);
+                                            const isOverheadTree = (cell.type === 'crop' && (cell.plant.type === 'Fruit Tree' || getPlantHeight(cell.plant) >= 12));
+                                            if (isUnderstory && isOverheadTree) {
+                                                // OK
+                                            } else {
+                                                clear = false;
+                                                break;
+                                            }
                                         } else {
                                             clear = false;
                                             break;
                                         }
-                                    } else {
-                                        clear = false;
-                                        break;
                                     }
                                 }
+                                if (!clear) break;
                             }
-                            if (!clear) break;
-                        }
-                        if (clear) {
-                            candidates.push({ r, c, penalty: 0 });
-                        }
-                    }
-                }
-
-                if (candidates.length === 0) {
-                    failed = true;
-                    break;
-                }
-
-                // Evaluate penalties for candidates in this trial
-                candidates.forEach(cand => {
-                    const candCenterR = cand.r + placeDiameter / 2;
-                    const candCenterC = cand.c + placeDiameter / 2;
-
-                    // 1. Packing Pressure: forces sequential placement towards the top-left (North)
-                    let penalty = isDistributed ? 
-                        (cand.r * cols + cand.c) * 0.05 : // Small tie-breaker for distributed mode
-                        (cand.r * cols + cand.c) * 1.5;   // High packing pressure for compact mode
-
-                    // 2. Syntropic Agroforestry row allocation constraint
-                    if (isSyntropic) {
-                        const rowMod = cand.r % 4;
-                        const isPerennial = (plant.type === "Fruit Tree" || getPlantHeight(plant) >= 12 || getPlantDiameter(plant) >= 6);
-                        if (isPerennial && rowMod !== 0) {
-                            penalty += 15000; // Force trees/perennials to canopy row 0
-                        } else if (!isPerennial && rowMod !== 2) {
-                            penalty += 15000; // Force annual crop species to alley row 2
+                            if (clear) {
+                                candidates.push({ r, c, penalty: 0 });
+                            }
                         }
                     }
 
-                    // 3. Applied Nucleation tree clustering constraint
-                    if (isNucleation && (plant.type === "Fruit Tree" || getPlantHeight(plant) >= 12)) {
-                        const nucleus1R = rows * 0.3;
-                        const nucleus1C = cols * 0.3;
-                        const nucleus2R = rows * 0.7;
-                        const nucleus2C = cols * 0.7;
-                        const dist1 = Math.sqrt((candCenterR - nucleus1R)**2 + (candCenterC - nucleus1C)**2);
-                        const dist2 = Math.sqrt((candCenterR - nucleus2R)**2 + (candCenterC - nucleus2C)**2);
-                        const minDistToNucleus = Math.min(dist1, dist2);
-                        penalty += minDistToNucleus * 250; // Pulls trees toward island nuclei
+                    if (candidates.length === 0) {
+                        failed = true;
+                        break;
                     }
 
-                    // 4. Proximity to placed crops of the SAME type (forces tight contiguous clustering)
-                    const sameTypePlaced = cropPlacedCenters;
-                    if (sameTypePlaced.length > 0) {
-                        let tooClose = false;
-                        let minDist = Infinity;
-                        sameTypePlaced.forEach(p => {
-                            const dist = Math.sqrt((candCenterR - p.r)**2 + (candCenterC - p.c)**2);
-                            if (dist < minDist) minDist = dist;
-                            if (dist < placeDiameter + spacingBuffer - 0.01) {
-                                tooClose = true;
+                    candidates.forEach(cand => {
+                        const candCenterR = cand.r + placeDiameter / 2;
+                        const candCenterC = cand.c + placeDiameter / 2;
+                        const thetaRad = gardenOrientationAngle * Math.PI / 180;
+                        const dy = candCenterR - rows / 2;
+                        const dx = candCenterC - cols / 2;
+                        const northness = -dx * Math.sin(thetaRad) - dy * Math.cos(thetaRad);
+                        const maxPossibleDist = Math.sqrt(cols * cols + rows * rows) / 2;
+                        const distFromNorth = maxPossibleDist - northness;
+
+                        let penalty = isDistributed ? distFromNorth * 0.05 : distFromNorth * 1.5;
+
+                        if (isSyntropic) {
+                            const rowMod = cand.r % 4;
+                            const isPerennial = (plant.type === "Fruit Tree" || getPlantHeight(plant) >= 12 || getPlantDiameter(plant) >= 6);
+                            if (isPerennial && rowMod !== 0) {
+                                penalty += 15000;
+                            } else if (!isPerennial && rowMod !== 2) {
+                                penalty += 15000;
+                            }
+                        }
+
+                        if (isNucleation && (plant.type === "Fruit Tree" || getPlantHeight(plant) >= 12)) {
+                            const nucleus1R = rows * 0.3;
+                            const nucleus1C = cols * 0.3;
+                            const nucleus2R = rows * 0.7;
+                            const nucleus2C = cols * 0.7;
+                            const dist1 = Math.sqrt((candCenterR - nucleus1R)**2 + (candCenterC - nucleus1C)**2);
+                            const dist2 = Math.sqrt((candCenterR - nucleus2R)**2 + (candCenterC - nucleus2C)**2);
+                            const minDistToNucleus = Math.min(dist1, dist2);
+                            penalty += minDistToNucleus * 250;
+                        }
+
+                        const sameTypePlaced = cropPlacedCenters;
+                        if (sameTypePlaced.length > 0) {
+                            let tooClose = false;
+                            let minDist = Infinity;
+                            sameTypePlaced.forEach(p => {
+                                const dist = Math.sqrt((candCenterR - p.r)**2 + (candCenterC - p.c)**2);
+                                if (dist < minDist) minDist = dist;
+                                if (dist < placeDiameter + spacingBuffer - 0.01) {
+                                    tooClose = true;
+                                }
+                            });
+                            if (tooClose) {
+                                penalty += 50000;
+                            } else {
+                                penalty += minDist * 800;
+                            }
+                        } else if (tempPlacedCenters.length > 0) {
+                            if (isDistributed) {
+                                tempPlacedCenters.forEach(placed => {
+                                    const dist = Math.sqrt((candCenterR - placed.r)**2 + (candCenterC - placed.c)**2);
+                                    penalty -= dist * 25;
+                                });
+                            } else {
+                                const lastPlaced = tempPlacedCenters[tempPlacedCenters.length - 1];
+                                const dist = Math.sqrt((candCenterR - lastPlaced.r)**2 + (candCenterC - lastPlaced.c)**2);
+                                penalty += dist * 50;
+                            }
+                        }
+
+                        tempPlacedCenters.forEach(placed => {
+                            const dRow = Math.abs(candCenterR - placed.r);
+                            const dCol = Math.abs(candCenterC - placed.c);
+                            if (dRow > 15 || dCol > 15) {
+                                if (isDistributed && placed.plantName !== plant.name) {
+                                    const dist = Math.sqrt(dRow * dRow + dCol * dCol);
+                                    penalty -= dist * 25;
+                                }
+                                return;
+                            }
+                            const dist = Math.sqrt(dRow * dRow + dCol * dCol);
+                            if (isDistributed && placed.plantName !== plant.name) {
+                                penalty -= dist * 25;
+                            }
+                            const key = [plant.name, placed.plantName].sort().join('::');
+                            const isAntagonist = antagonistsSet.has(placed.plantName);
+                            if (isAntagonist && !disabledAntagonists.has(key)) {
+                                penalty += 1500 / (dist + 0.1);
+                            }
+                            const isCompanion = companionsSet.has(placed.plantName);
+                            if (isCompanion) {
+                                penalty -= 300 / (dist + 0.1);
+                            }
+                            if (placed.plantName !== plant.name && !isCompanion && !isFoodForest) {
+                                const candBed = Math.floor(candCenterC / 6);
+                                const placedBed = Math.floor(placed.c / 6);
+                                if (candBed === placedBed) {
+                                    penalty += 800;
+                                }
                             }
                         });
-                        if (tooClose) {
-                            penalty += 50000; // Strong penalty block if violating spacing buffer
-                        } else {
-                            penalty += minDist * 800; // Keeps same-crop block contiguous
-                        }
-                    } else if (tempPlacedCenters.length > 0) {
-                        // First plant of this crop type
-                        if (isDistributed) {
-                            // Repel from ALL previously placed different crop types to separate blocks into different beds
-                            tempPlacedCenters.forEach(placed => {
-                                const dist = Math.sqrt((candCenterR - placed.r)**2 + (candCenterC - placed.c)**2);
-                                penalty -= dist * 25; // Negative penalty: larger distance = lower penalty
-                            });
-                        } else {
-                            // Attract to the last placed crop instance to keep blocks contiguous with no empty spaces/gaps
-                            const lastPlaced = tempPlacedCenters[tempPlacedCenters.length - 1];
-                            const dist = Math.sqrt((candCenterR - lastPlaced.r)**2 + (candCenterC - lastPlaced.c)**2);
-                            penalty += dist * 50;
-                        }
-                    }
 
-                    // 5. Antagonist avoidance, Companion clustering, and Bed sharing
-                    tempPlacedCenters.forEach(placed => {
-                        const key = [plant.name, placed.plantName].sort().join('::');
-                        const dist = Math.sqrt((candCenterR - placed.r)**2 + (candCenterC - placed.c)**2);
-
-                        const isAntagonist = lastDesignResponse && lastDesignResponse.antagonists && 
-                            lastDesignResponse.antagonists.some(a => 
-                                (a.plant === plant.name && a.antagonist === placed.plantName) ||
-                                (a.plant === placed.plantName && a.antagonist === plant.name)
-                            );
-                        if (isAntagonist && !disabledAntagonists.has(key)) {
-                            penalty += 1500 / (dist + 0.1); // Strong repulsion for antagonists
-                        }
-
-                        const isCompanion = lastDesignResponse && lastDesignResponse.companions && 
-                            lastDesignResponse.companions.some(c => 
-                                (c.plant === plant.name && c.companion === placed.plantName) ||
-                                (c.plant === placed.plantName && c.companion === plant.name)
-                            );
-                        if (isCompanion) {
-                            penalty -= 300 / (dist + 0.1); // High attraction bonus for companions
-                        }
-
-                        // Hard non-companion bed sharing prevention (prevents mixed beds)
-                        if (placed.plantName !== plant.name && !isCompanion && !isFoodForest) {
-                            const candBed = Math.floor(candCenterC / 6);
-                            const placedBed = Math.floor(placed.c / 6);
-                            if (candBed === placedBed) {
-                                penalty += 800; // Strong penalty if sharing the same physical bed columns
-                            }
-                        }
+                        cand.penalty = penalty;
                     });
 
-                    cand.penalty = penalty;
-                });
+                    candidates.sort((a, b) => {
+                        if (Math.abs(a.penalty - b.penalty) > 0.001) {
+                            return a.penalty - b.penalty;
+                        }
+                        if (a.r !== b.r) return a.r - b.r;
+                        return a.c - b.c;
+                    });
 
-                // Sort candidates
-                candidates.sort((a, b) => {
-                    if (Math.abs(a.penalty - b.penalty) > 0.001) {
-                        return a.penalty - b.penalty;
+                    if (candidates[0].penalty >= 40000) {
+                        failed = true;
+                        break;
                     }
-                    if (a.r !== b.r) return a.r - b.r;
-                    return a.c - b.c;
-                });
 
-                // If the best candidate is blocked, this trial failed
-                if (candidates[0].penalty >= 40000) {
-                    failed = true;
-                    break;
-                }
+                    const best = candidates[0];
+                    const instanceId = `${plant.id}_${best.r}_${best.c}`;
+                    const centerPt = {
+                        r: best.r + placeDiameter / 2,
+                        c: best.c + placeDiameter / 2,
+                        plantName: plant.name
+                    };
 
-                const best = candidates[0];
-                const instanceId = `${plant.id}_${best.r}_${best.c}`;
-                const centerPt = {
-                    r: best.r + placeDiameter / 2,
-                    c: best.c + placeDiameter / 2,
-                    plantName: plant.name
-                };
-
-                // Commit to temporary grid
-                for (let dr = 0; dr < placeDiameter; dr++) {
-                    for (let dc = 0; dc < placeDiameter; dc++) {
-                        const cellR = best.r + dr;
-                        const cellC = best.c + dc;
-                        const existingCell = tempGrid[cellR][cellC];
-                        
-                        if (existingCell && existingCell.type === 'crop') {
-                            // Food Forest Layering: Register greens/roots as understory rather than overriding tree
-                            existingCell.understory = plant;
-                            existingCell.understoryInstanceId = instanceId;
-                        } else {
-                            tempGrid[cellR][cellC] = {
-                                type: 'crop',
-                                plant: plant,
-                                instanceId: instanceId,
-                                isCenter: (dr === Math.floor(placeDiameter / 2) && dc === Math.floor(placeDiameter / 2)),
-                                isTopLeft: (dr === 0 && dc === 0),
-                                diameter: placeDiameter,
-                                startR: best.r,
-                                startC: best.c
-                            };
+                    for (let dr = 0; dr < placeDiameter; dr++) {
+                        for (let dc = 0; dc < placeDiameter; dc++) {
+                            const cellR = best.r + dr;
+                            const cellC = best.c + dc;
+                            const existingCell = tempGrid[cellR][cellC];
+                            if (existingCell && existingCell.type === 'crop') {
+                                existingCell.understory = plant;
+                                existingCell.understoryInstanceId = instanceId;
+                            } else {
+                                tempGrid[cellR][cellC] = {
+                                    type: 'crop',
+                                    plant: plant,
+                                    instanceId: instanceId,
+                                    isCenter: (dr === Math.floor(placeDiameter / 2) && dc === Math.floor(placeDiameter / 2)),
+                                    isTopLeft: (dr === 0 && dc === 0),
+                                    diameter: placeDiameter,
+                                    startR: best.r,
+                                    startC: best.c
+                                };
+                            }
                         }
                     }
+                    cropPlacedCenters.push(centerPt);
+                    tempPlacedCenters.push(centerPt);
+                    placedCount++;
                 }
 
-                cropPlacedCenters.push(centerPt);
-                tempPlacedCenters.push(centerPt);
-                placedCount++;
+                if (failed) {
+                    spacingBuffer--;
+                    if (spacingBuffer >= 0) {
+                        cropPlacedCenters = [];
+                        tempGrid = Array(rows).fill(null).map((_, r) => [...gridArray[r]]);
+                        tempPlacedCenters = [...placedCenters];
+                        placedCount = 0;
+                        setTimeout(placeInstancesStep, 0);
+                    } else {
+                        cropIndex++;
+                        setTimeout(processNextCrop, 0);
+                    }
+                } else if (placedCount === targetCount) {
+                    gridArray = tempGrid;
+                    placedCenters = tempPlacedCenters;
+                    cropIndex++;
+                    setTimeout(processNextCrop, 0);
+                } else {
+                    if (onProgress) {
+                        const totalCropsPlaced = placedCenters.length + placedCount;
+                        const totalTargetInstances = sortedCrops.reduce((sum, c) => sum + (c.quantity || 1), 0);
+                        const pct = Math.min(99, Math.round((totalCropsPlaced / totalTargetInstances) * 100));
+                        onProgress(pct, `${plant.name} (${placedCount}/${targetCount})`);
+                    }
+                    setTimeout(placeInstancesStep, 0);
+                }
             }
 
-            if (!failed && placedCount === targetCount) {
-                // Success! Commit temporary grid and placed centers to the main layout variables
-                gridArray = tempGrid;
-                placedCenters = tempPlacedCenters;
-                success = true;
-            } else {
-                // Failed to fit with this spacing buffer, reduce spacing buffer and try again
-                spacingBuffer--;
-            }
+            placeInstancesStep();
         }
+
+        processNextCrop();
     });
 }
+async function recalculateLayout() {
+    const submitBtn = document.getElementById('btn-submit-design');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spacing Crops... 0%';
+    }
 
-    // 4. Save grid state for 3D view caching
+    const result = await generateLayoutGridAsync(currentWidth || 80, currentHeight || 50, (pct, plantName) => {
+        if (submitBtn) {
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Spacing: ${pct}% (${plantName})`;
+        }
+    });
+
+    currentGridArray = result.gridArray;
+    placedCenters = result.placedCenters;
+
+    isManualEdit = true;
+    renderLayoutGrid(currentWidth || 80, currentHeight || 50);
+    isManualEdit = false;
+
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Design My Garden';
+    }
+
+    trigger3DRender();
+}
+
+function renderLayoutGrid(width, height) {
+    const isDistributed = document.getElementById('chk-distribute-layout')?.checked || false;
+    gardenGrid.innerHTML = '';
+    
+    // Grid cells represent 1x1 ft space
+    const cols = Math.round(width);
+    const rows = Math.round(height);
+    
+    document.getElementById('grid-dim-text').textContent = `${width} ft x ${height} ft (1 cell = 1 sq ft)`;
+
+    // Set dynamic base cell size to fit the entire layout inside the viewport on startup
+    const scrollPane = document.getElementById('layout-scroll-pane');
+    const paneWidth = scrollPane ? scrollPane.clientWidth : 600;
+    const paneHeight = scrollPane ? scrollPane.clientHeight : 480;
+
+    // Minimum 2px per cell to prevent invisible layouts at extreme farm scales
+    const fitCellSize = Math.max(2, Math.min((paneWidth - 20) / cols, (paneHeight - 20) / rows));
+    const currentCellSize = fitCellSize * zoomScale;
+
+    gardenGrid.style.width = `${cols * currentCellSize}px`;
+    gardenGrid.style.height = `${rows * currentCellSize}px`;
+    gardenGrid.style.display = 'grid';
+    gardenGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    gardenGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    // Initialize 2D grid array representing layout space
+    let gridArray;
+    let placedCenters = [];
+
+    if (currentGridArray) {
+        gridArray = currentGridArray;
+        // Re-populate placedCenters from gridArray for secondary calculations
+        const placedSet = new Set();
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const cell = gridArray[r][c];
+                if (cell && cell.type === 'crop' && !placedSet.has(cell.instanceId)) {
+                    placedSet.add(cell.instanceId);
+                    const centerR = cell.startR + cell.diameter / 2;
+                    const centerC = cell.startC + cell.diameter / 2;
+                    placedCenters.push({ r: centerR, c: centerC, plantName: cell.plant.name });
+                }
+            }
+        }
+    } else {
+        gridArray = Array(rows).fill(null).map(() => Array(cols).fill(null));
+    }
+
     currentGridArray = gridArray;
     currentWidth = width;
     currentHeight = height;
@@ -1835,6 +2519,17 @@ function renderLayoutGrid(width, height) {
             } else if (cellData.type === 'crop') {
                 cell.classList.add('crop');
                 cell.dataset.instanceId = cellData.instanceId;
+                cell.dataset.plantId = cellData.plant.id;
+                cell.dataset.plantName = cellData.plant.name;
+
+                // Highlight plant if it belongs to the highlighted category
+                if (highlightedPlantName === cellData.plant.name) {
+                    cell.classList.add('gold-highlight-2d');
+                    cell.style.outline = '3px solid #eab308';
+                    cell.style.outlineOffset = '-3px';
+                    cell.style.boxShadow = '0 0 12px rgba(234, 179, 8, 0.8)';
+                    cell.style.zIndex = '5';
+                }
 
                 // Highlight footprint if the crop instance is in the active selection
                 const isSelected = selectedPlantGroups.some(g => g && g.userData && g.userData.instanceId === cellData.instanceId);
@@ -2199,11 +2894,10 @@ function renderRecommendations() {
                 }
                 
                 // Immediately update layouts with the new separation settings!
-                renderLayoutGrid(currentWidth, currentHeight);
-                renderRecommendations();
-                trigger3DRender();
+                recalculateLayout().then(() => {
+                    renderRecommendations();
+                });
             });
-            
             antContainer.appendChild(tag);
         });
     } else {
@@ -2378,10 +3072,14 @@ function renderCalendarTimeline() {
 }
 
 // ==================== THREE.JS 3D LAYOUT SYSTEM ====================
-let scene3d, camera3d, renderer3d, gardenGroup3d;
+let scene3d, camera3d, renderer3d, gardenGroup3d, dirLight, visualsParentGroup;
 let current2DRenderId = 0;
 let current3DRenderId = 0;
 let isAutoBalanceEnabled = true;
+let isSunAnimationPlaying = false;
+let shadowStretchVal = 1.0;
+let shadowContrastVal = 0.8;
+let sunSpeedVal = 1.0;
 const plantTextureCache = new Map();
 let raycaster3d, mouse3d;
 let lastHoveredGroup = null;
@@ -2389,10 +3087,19 @@ let isDragging3d = false;
 let dragButton3d = 0; // 0 for left (rotation), 2 for right (panning)
 let cameraTarget3d = null;
 let previousMousePosition3d = { x: 0, y: 0 };
+let cameraOrbitAngleY = 0; // in radians
+let cameraOrbitAngleX = 0; // in radians
+let gardenOrientationAngle = 0; // in degrees
+let isSunPathActive = false;
+let sunArcLine = null;
+let sunSphereMesh = null;
+let sunTime = 0; // 0 to PI
+let staticEnvCompass = null;
 
 // 3D Layout Editor Global States
 let isEditModeActive = false;
 let selectedPlantGroups = [];
+let selectionHelpers3D = [];
 let isDraggingPlant = false;
 let dragPlane3d = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 let isDrawingSelectionBox = false;
@@ -2425,6 +3132,7 @@ function resize3D() {
     if (container && renderer3d && camera3d) {
         const width = container.clientWidth;
         const height = container.clientHeight;
+        console.log("[DEBUG resize3D] container clientWidth:", width, "clientHeight:", height);
         if (width > 0 && height > 0) {
             camera3d.aspect = width / height;
             camera3d.updateProjectionMatrix();
@@ -2447,6 +3155,10 @@ window.addEventListener('resize', () => {
 
 function init3D() {
     const container = document.getElementById('3d-canvas-container');
+    console.log("[DEBUG init3D] container exists:", !!container);
+    if (container) {
+        console.log("[DEBUG init3D] client size:", container.clientWidth, "x", container.clientHeight, "display style:", window.getComputedStyle(container).display);
+    }
     if (!container || !window.THREE || scene3d) {
         // Even if scene3d is initialized, container resize might have happened
         if (scene3d) resize3D();
@@ -2465,7 +3177,13 @@ function init3D() {
     renderer3d = new THREE.WebGLRenderer({ antialias: true });
     renderer3d.setSize(container.clientWidth, container.clientHeight);
     renderer3d.shadowMap.enabled = true;
+    // Preserve overlays defined in HTML
+    const clock = document.getElementById('3d-solar-clock');
+    const controls = document.getElementById('3d-solar-controls');
+    
     container.innerHTML = '';
+    if (clock) container.appendChild(clock);
+    if (controls) container.appendChild(controls);
     
     // Recreate the glassmorphic tooltip programmatically to prevent container-clear deletion
     const tooltip = document.createElement('div');
@@ -2496,14 +3214,17 @@ function init3D() {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
     scene3d.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+    dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
     dirLight.position.set(20, 50, 20);
     dirLight.castShadow = true;
     scene3d.add(dirLight);
 
-    // Group Container
+    // Group Containers
+    visualsParentGroup = new THREE.Group();
+    scene3d.add(visualsParentGroup);
+
     gardenGroup3d = new THREE.Group();
-    scene3d.add(gardenGroup3d);
+    visualsParentGroup.add(gardenGroup3d);
 
     // Initialize Raycaster and Mouse vector
     raycaster3d = new THREE.Raycaster();
@@ -2618,6 +3339,7 @@ function init3D() {
                     selectedPlantGroups = [];
                 }
             }
+            update3DSelectionHighlights();
         } else {
             // Normal view orbiting/panning camera moves
             isDragging3d = true;
@@ -2644,15 +3366,18 @@ function init3D() {
             // Project ray onto ground plane and translate all selected plant meshes in local space
             raycaster3d.setFromCamera(mouse3d, camera3d);
             const intersectPt = new THREE.Vector3();
-            raycaster3d.ray.intersectPlane(dragPlane3d, intersectPt);
-            const localIntersectPt = intersectPt.clone();
-            gardenGroup3d.worldToLocal(localIntersectPt);
+            if (raycaster3d.ray.intersectPlane(dragPlane3d, intersectPt)) {
+                const localIntersectPt = intersectPt.clone();
+                gardenGroup3d.worldToLocal(localIntersectPt);
 
-            selectedPlantGroups.forEach(g => {
-                const targetPos = new THREE.Vector3().addVectors(localIntersectPt, g.userData.dragOffset);
-                targetPos.y = 0; // Force Y coordinate to be exactly 0 (no dipping below garden plane)
-                g.position.copy(targetPos);
-            });
+                selectedPlantGroups.forEach(g => {
+                    const targetPos = new THREE.Vector3().addVectors(localIntersectPt, g.userData.dragOffset);
+                    targetPos.y = 0; // Force Y coordinate to be exactly 0 (no dipping below garden plane)
+                    g.position.copy(targetPos);
+                });
+                
+                update3DSelectionHighlights();
+            }
 
             // Clear preview snap-highlights and hide them while moving
             clearTimeout(dragPreviewTimeout);
@@ -2780,12 +3505,19 @@ function init3D() {
                     }
                 }
             });
+            update3DSelectionHighlights();
         } else if (isDragging3d) {
             // View camera orbits and translation pans
             if (dragButton3d === 0) {
-                gardenGroup3d.rotation.y += deltaMove.x * 0.007;
-                gardenGroup3d.rotation.x += deltaMove.y * 0.007;
-                gardenGroup3d.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 6, gardenGroup3d.rotation.x));
+                cameraOrbitAngleY += deltaMove.x * 0.007;
+                cameraOrbitAngleX += deltaMove.y * 0.007;
+                cameraOrbitAngleX = Math.max(-Math.PI / 3, Math.min(Math.PI / 6, cameraOrbitAngleX));
+                
+                if (visualsParentGroup) {
+                    visualsParentGroup.rotation.y = cameraOrbitAngleY;
+                    visualsParentGroup.rotation.x = cameraOrbitAngleX;
+                }
+                update3DCompass();
             } else if (dragButton3d === 2) {
                 const dist = camera3d.position.distanceTo(cameraTarget3d);
                 const panSpeed = Math.max(0.01, dist * 0.0018);
@@ -2965,6 +3697,7 @@ function init3D() {
                 });
             }
         }
+        update3DSelectionHighlights();
     });
 
     // Zooming inside 3D viewport relative to the dynamic cameraTarget3d focus
@@ -2994,6 +3727,85 @@ function init3D() {
 function animate3D() {
     if (!renderer3d) return;
     requestAnimationFrame(animate3D);
+
+    // Pulsate the gold highlight helper wireframes in 3D
+    if (active3DHighlightHelpers.length > 0) {
+        const pulse = 0.35 + 0.45 * Math.sin(Date.now() * 0.005);
+        active3DHighlightHelpers.forEach(helper => {
+            if (helper.material) {
+                helper.material.opacity = pulse;
+            }
+        });
+    }
+
+    // Sun Animation Track Playback
+    if (isSunAnimationPlaying && isSunPathActive && sunSphereMesh && dirLight) {
+        // Increment sunTime smoothly based on simulation speed slider
+        sunTime += 0.008 * sunSpeedVal;
+        if (sunTime > Math.PI) {
+            sunTime = 0; // Wrap around sunrise to sunset
+        }
+
+        const zipInput = document.getElementById('input-zip')?.value || "48195";
+        const latitude = getLatitudeFromZip(zipInput);
+        const latRad = latitude * Math.PI / 180;
+        
+        const cols = (typeof currentWidth !== 'undefined' ? currentWidth : 30);
+        const rows = (typeof currentHeight !== 'undefined' ? currentHeight : 30);
+        const radius = Math.max(cols, rows) * 1.5;
+
+        // Calculate sun position along tilted celestial arc
+        const x = -radius * Math.cos(sunTime);
+        const y = radius * Math.sin(sunTime) * Math.cos(latRad);
+        const z = radius * Math.sin(sunTime) * Math.sin(latRad);
+
+        // Update sun sphere mesh position (always stays on original celestial path)
+        sunSphereMesh.position.set(x, y, z);
+
+        // Update directional light position to cast shadows from the sun's position.
+        // We divide the height (Y) by the shadow stretch multiplier to lower the light's height,
+        // which physically stretches the cast shadows horizontally!
+        dirLight.position.set(x, y / shadowStretchVal, z);
+
+        // Dynamic light color and intensity adjustments based on altitude
+        const sinAlt = y / radius; // sin of sun altitude
+        
+        // Ambient light adjusts down to create high-contrast shadows based on Shadow Contrast slider
+        const ambient = scene3d.children.find(c => c.isAmbientLight);
+        if (ambient) {
+            const baseAmbient = 0.45 * (1 - shadowContrastVal);
+            ambient.intensity = baseAmbient + 0.35 * Math.max(0, sinAlt);
+        }
+
+        if (sinAlt > 0) {
+            // Exaggerate directional light intensity if contrast is high to make shadows look extra bold
+            dirLight.intensity = (0.1 + 0.8 * sinAlt) * (1 + shadowContrastVal * 0.4);
+
+            // Warm orange/yellow for sunrise/sunset, crisp white for solar noon
+            const r = 1.0;
+            const g = 0.6 + 0.4 * Math.max(0, sinAlt);
+            const b = 0.2 + 0.8 * Math.max(0, sinAlt);
+            dirLight.color.setRGB(r, g, b);
+            
+            dirLight.castShadow = true;
+        } else {
+            // Sun is below horizon (night)
+            dirLight.intensity = 0.0;
+            dirLight.castShadow = false;
+        }
+
+        // Clock time display mapping sunTime (0 to PI) to 6:00 AM - 6:00 PM
+        const totalMins = 6 * 60 + (sunTime / Math.PI) * 12 * 60;
+        const hour = Math.floor(totalMins / 60) % 24;
+        const mins = Math.floor(totalMins % 60);
+
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const dispHour = hour % 12 === 0 ? 12 : hour % 12;
+        const dispMins = mins < 10 ? '0' + mins : mins;
+        const clockText = `${dispHour}:${dispMins} ${ampm}`;
+        const clockEl = document.getElementById('solar-clock-text');
+        if (clockEl) clockEl.textContent = clockText;
+    }
 
     // Raycast intersections lookup for plant labels and specs
     if (raycaster3d && camera3d && gardenGroup3d && mouse3d.x > -9900) {
@@ -3087,6 +3899,36 @@ function disposeNode(node) {
 }
 
 function clearGarden3D() {
+    // Clear selection helpers
+    selectionHelpers3D.forEach(helper => {
+        scene3d.remove(helper);
+        if (helper.geometry) helper.geometry.dispose();
+        if (helper.material) helper.material.dispose();
+    });
+    selectionHelpers3D = [];
+
+    // Clear environment compass rose and solar path meshes
+    if (staticEnvCompass) {
+        if (visualsParentGroup) visualsParentGroup.remove(staticEnvCompass);
+        staticEnvCompass.traverse(node => {
+            if (node.geometry) node.geometry.dispose();
+            if (node.material) node.material.dispose();
+        });
+        staticEnvCompass = null;
+    }
+    if (sunArcLine) {
+        if (visualsParentGroup) visualsParentGroup.remove(sunArcLine);
+        if (sunArcLine.geometry) sunArcLine.geometry.dispose();
+        if (sunArcLine.material) sunArcLine.material.dispose();
+        sunArcLine = null;
+    }
+    if (sunSphereMesh) {
+        if (visualsParentGroup) visualsParentGroup.remove(sunSphereMesh);
+        if (sunSphereMesh.geometry) sunSphereMesh.geometry.dispose();
+        if (sunSphereMesh.material) sunSphereMesh.material.dispose();
+        sunSphereMesh = null;
+    }
+
     if (!gardenGroup3d) return;
     gardenGroup3d.traverse(node => {
         if (node instanceof THREE.Mesh) {
@@ -3139,6 +3981,27 @@ function getPlantEmoji(plantName) {
     return "🌱";
 }
 
+function adjustColorBrightness(hex, percent) {
+    if (!hex || hex.charAt(0) !== '#') return hex;
+    let R = parseInt(hex.substring(1, 3), 16) || 0;
+    let G = parseInt(hex.substring(3, 5), 16) || 0;
+    let B = parseInt(hex.substring(5, 7), 16) || 0;
+
+    R = parseInt(R * (1 + percent));
+    G = parseInt(G * (1 + percent));
+    B = parseInt(B * (1 + percent));
+
+    R = Math.max(0, Math.min(255, R));
+    G = Math.max(0, Math.min(255, G));
+    B = Math.max(0, Math.min(255, B));
+
+    const rHex = R.toString(16).padStart(2, '0');
+    const gHex = G.toString(16).padStart(2, '0');
+    const bHex = B.toString(16).padStart(2, '0');
+
+    return `#${rHex}${gHex}${bHex}`;
+}
+
 function createPlantTextureCanvas(plantName, emoji, colors) {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -3179,48 +4042,108 @@ function buildSimplifiedConeModel(plant, diameter) {
     const coneGroup = new THREE.Group();
     const colors = getPlantColor(plant.id);
     
-    // Determine radii and heights (converted to feet / grid units)
-    const maxRad = plant.max_radius ? parseFloat(plant.max_radius) : diameter / 2;
-    const minRad = plant.min_radius ? parseFloat(plant.min_radius) : maxRad * 0.25;
     const height = plant.mature_height ? parseFloat(plant.mature_height) : 3.0;
+    const isTree = (plant.type === 'Fruit Tree' || height >= 12 || diameter >= 6);
 
-    // Cylinder: CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded)
-    const coneGeo = new THREE.CylinderGeometry(maxRad, minRad, height, 8);
+    // Resolve specific foliage color from database if present
+    const sideColor = plant.foliage_color || colors.border;
+    const bgColor = plant.foliage_color ? adjustColorBrightness(plant.foliage_color, -0.6) : colors.background;
+    const borderCol = plant.foliage_color || colors.border;
     
-    // Materials
-    const sideMat = new THREE.MeshStandardMaterial({
-        color: colors.border,
-        transparent: true,
-        opacity: 0.6,
-        roughness: 0.8,
-        side: THREE.DoubleSide
-    });
+    const displayColors = {
+        background: bgColor,
+        border: borderCol,
+        text: colors.text
+    };
 
-    const textureCacheKey = `${plant.id}_${colors.border}_${colors.background}`;
-    if (!plantTextureCache.has(textureCacheKey)) {
-        const emoji = getPlantEmoji(plant.name);
-        const texture = createPlantTextureCanvas(plant.name, emoji, colors);
-        plantTextureCache.set(textureCacheKey, texture);
+    if (isTree) {
+        // --- 1. Trunk (Brown Cylinder) ---
+        const trunkHeight = height * 0.35;
+        const trunkRad = Math.max(0.2, Math.min(1.5, diameter * 0.05));
+        const trunkGeo = new THREE.CylinderGeometry(trunkRad * 0.8, trunkRad, trunkHeight, 6);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9 });
+        const trunkMesh = new THREE.Mesh(trunkGeo, trunkMat);
+        trunkMesh.position.y = trunkHeight / 2;
+        trunkMesh.castShadow = true;
+        trunkMesh.receiveShadow = true;
+        coneGroup.add(trunkMesh);
+
+        // --- 2. Canopy (Green Cone/Cylinder) ---
+        const canopyHeight = height * 0.65;
+        const maxRad = plant.max_radius ? parseFloat(plant.max_radius) : diameter / 2;
+        const minRad = plant.min_radius ? parseFloat(plant.min_radius) : maxRad * 0.25;
+        
+        const canopyGeo = new THREE.CylinderGeometry(minRad, maxRad, canopyHeight, 8);
+        
+        const sideMat = new THREE.MeshStandardMaterial({
+            color: sideColor,
+            roughness: 0.8,
+            side: THREE.DoubleSide
+        });
+
+        const textureCacheKey = `${plant.id}_${displayColors.border}_${displayColors.background}`;
+        if (!plantTextureCache.has(textureCacheKey)) {
+            const emoji = getPlantEmoji(plant.name);
+            const texture = createPlantTextureCanvas(plant.name, emoji, displayColors);
+            plantTextureCache.set(textureCacheKey, texture);
+        }
+        const canvasTexture = plantTextureCache.get(textureCacheKey);
+        
+        const topCapMat = new THREE.MeshStandardMaterial({
+            map: canvasTexture,
+            roughness: 0.5
+        });
+
+        const materials = [sideMat, topCapMat, sideMat];
+        const canopyMesh = new THREE.Mesh(canopyGeo, materials);
+        canopyMesh.castShadow = true;
+        canopyMesh.receiveShadow = true;
+        
+        canopyMesh.position.y = trunkHeight + canopyHeight / 2;
+        coneGroup.add(canopyMesh);
+    } else {
+        // --- Standard plant cone model ---
+        const maxRad = plant.max_radius ? parseFloat(plant.max_radius) : diameter / 2;
+        const minRad = plant.min_radius ? parseFloat(plant.min_radius) : maxRad * 0.25;
+
+        const coneGeo = new THREE.CylinderGeometry(maxRad, minRad, height, 8);
+        
+        const sideMat = new THREE.MeshStandardMaterial({
+            color: sideColor,
+            roughness: 0.8,
+            side: THREE.DoubleSide
+        });
+
+        const textureCacheKey = `${plant.id}_${displayColors.border}_${displayColors.background}`;
+        if (!plantTextureCache.has(textureCacheKey)) {
+            const emoji = getPlantEmoji(plant.name);
+            const texture = createPlantTextureCanvas(plant.name, emoji, displayColors);
+            plantTextureCache.set(textureCacheKey, texture);
+        }
+        const canvasTexture = plantTextureCache.get(textureCacheKey);
+        
+        const topCapMat = new THREE.MeshStandardMaterial({
+            map: canvasTexture,
+            roughness: 0.5
+        });
+
+        const materials = [sideMat, topCapMat, sideMat];
+        const coneMesh = new THREE.Mesh(coneGeo, materials);
+        coneMesh.castShadow = true;
+        coneMesh.receiveShadow = true;
+        
+        coneMesh.position.y = height / 2;
+        coneGroup.add(coneMesh);
     }
-    const canvasTexture = plantTextureCache.get(textureCacheKey);
-    
-    const topCapMat = new THREE.MeshStandardMaterial({
-        map: canvasTexture,
-        roughness: 0.5
-    });
-
-    const materials = [sideMat, topCapMat, sideMat];
-    const coneMesh = new THREE.Mesh(coneGeo, materials);
-    
-    coneMesh.position.y = height / 2;
-    coneGroup.add(coneMesh);
 
     return coneGroup;
 }
 
 function update3DLayout(width, height, gridArray) {
-    if (!scene3d || !gardenGroup3d) return;
-
+    if (!scene3d || !gardenGroup3d) {
+        console.log("[DEBUG update3DLayout] skipped, scene3d:", !!scene3d, "gardenGroup3d:", !!gardenGroup3d);
+        return;
+    }
     // Clear previous elements with proper memory disposal
     clearGarden3D();
 
@@ -3236,6 +4159,17 @@ function update3DLayout(width, height, gridArray) {
         }
         camera3d.lookAt(cameraTarget3d || new THREE.Vector3(0, 0, 0));
         shouldResetCamera3D = false;
+        
+        // Reset orbit angles, preserving current orientation angle
+        cameraOrbitAngleY = 0;
+        cameraOrbitAngleX = 0;
+        if (visualsParentGroup) {
+            visualsParentGroup.rotation.set(cameraOrbitAngleX, cameraOrbitAngleY, 0);
+        }
+        if (gardenGroup3d) {
+            gardenGroup3d.rotation.set(0, -gardenOrientationAngle * Math.PI / 180, 0);
+        }
+        update3DCompass();
     }
 
     // Ground plane grass lawn card
@@ -3243,7 +4177,45 @@ function update3DLayout(width, height, gridArray) {
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x142015, roughness: 0.95 }); // Moss green grass
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.position.y = -0.1;
+    ground.receiveShadow = true;
     gardenGroup3d.add(ground);
+
+    // Adjust shadow map camera frustum to fit the garden size perfectly
+    if (dirLight) {
+        const maxDim = Math.max(cols, rows);
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 1.0;
+        dirLight.shadow.camera.far = maxDim * 6.0;
+        
+        const bounds = maxDim * 1.6;
+        dirLight.shadow.camera.left = -bounds;
+        dirLight.shadow.camera.right = bounds;
+        dirLight.shadow.camera.top = bounds;
+        dirLight.shadow.camera.bottom = -bounds;
+        dirLight.shadow.camera.updateProjectionMatrix();
+    }
+
+    // Static Floor Compass Rose (Environment North) setup
+    if (staticEnvCompass) {
+        visualsParentGroup.remove(staticEnvCompass);
+        staticEnvCompass.traverse(node => {
+            if (node.geometry) node.geometry.dispose();
+            if (node.material) node.material.dispose();
+        });
+    }
+    const roseRadius = Math.max(cols, rows) * 0.7;
+    staticEnvCompass = createStaticEnvironmentNorthArrow(roseRadius);
+    visualsParentGroup.add(staticEnvCompass);
+
+    // Sync 2D CAD North Arrow Rotation
+    const cadNorthArrowIcon = document.querySelector('#cad-north-arrow i');
+    if (cadNorthArrowIcon) {
+        cadNorthArrowIcon.style.transform = `rotate(${-gardenOrientationAngle}deg)`;
+    }
+
+    // Render Sun Path Trajectory
+    drawSunPath(cols, rows);
 
 
 
@@ -3279,10 +4251,30 @@ function update3DLayout(width, height, gridArray) {
                         startC: cellData.startC
                     });
                 }
+                if (cellData.understory && !placedInstances.has(cellData.understoryInstanceId)) {
+                    placedInstances.add(cellData.understoryInstanceId);
+                    const parts = cellData.understoryInstanceId.split('_');
+                    const startR = parseInt(parts[1]);
+                    const startC = parseInt(parts[2]);
+                    const understoryCellData = {
+                        type: 'crop',
+                        plant: cellData.understory,
+                        instanceId: cellData.understoryInstanceId,
+                        diameter: getPlantDiameter(cellData.understory),
+                        startR: startR,
+                        startC: startC
+                    };
+                    renderQueue.push({
+                        type: 'crop',
+                        cellData: understoryCellData,
+                        diameter: understoryCellData.diameter,
+                        startR: startR,
+                        startC: startC
+                    });
+                }
             }
         }
     }
-
     let currentIndex = 0;
     const chunkSize = 200; // Build 200 items per frame to keep browser tab fully responsive
 
@@ -3298,6 +4290,8 @@ function update3DLayout(width, height, gridArray) {
                 const pathMat = new THREE.MeshStandardMaterial({ color: 0x5a4537, roughness: 0.95 });
                 const pathTile = new THREE.Mesh(pathGeo, pathMat);
                 pathTile.position.set(item.x, 0.06, item.z);
+                pathTile.castShadow = true;
+                pathTile.receiveShadow = true;
                 gardenGroup3d.add(pathTile);
             } else if (item.type === 'crop') {
                 const diameter = item.diameter;
@@ -3316,6 +4310,8 @@ function update3DLayout(width, height, gridArray) {
                 const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2b22, roughness: 0.9 });
                 const frame = new THREE.Mesh(frameGeo, frameMat);
                 frame.position.set(0, 0.09, 0);
+                frame.castShadow = true;
+                frame.receiveShadow = true;
                 instanceGroup.add(frame);
 
                 // 2. Black soil compost surface
@@ -3323,6 +4319,7 @@ function update3DLayout(width, height, gridArray) {
                 const soilMat = new THREE.MeshStandardMaterial({ color: 0x160f0a, roughness: 0.98 });
                 const soil = new THREE.Mesh(soilGeo, soilMat);
                 soil.position.set(0, 0.18, 0);
+                soil.receiveShadow = true;
                 instanceGroup.add(soil);
 
                 // 3. Center the 3D plant model (simplified octagonal cone)
@@ -3356,18 +4353,37 @@ function update3DLayout(width, height, gridArray) {
 
         if (currentIndex < renderQueue.length) {
             requestAnimationFrame(renderNext3DChunk);
+        } else {
+            update3DHighlights();
         }
     }
 
     requestAnimationFrame(renderNext3DChunk);
 }
 
-// Initialize on window load
 window.addEventListener('load', () => {
     loadPlants();
     initPreferences();
+    
+    // Fetch system health and git status
+    fetch('/api/health')
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.git) {
+                const dateEl = document.getElementById('lbl-last-changes-date');
+                const versionEl = document.getElementById('lbl-git-version');
+                if (dateEl && data.git.date) {
+                    dateEl.textContent = data.git.date;
+                }
+                if (versionEl && data.git.commit) {
+                    versionEl.textContent = data.git.commit;
+                }
+            }
+        })
+        .catch(err => console.error("Error fetching system info:", err));
     initMultiPresets();
     initAgentHub();
+    initCompassDrag();
     
     // Setup Mobile Sidebar Drawer Toggle and Close logic
     const sidebar = document.querySelector('.sidebar');
@@ -3447,145 +4463,246 @@ window.addEventListener('load', () => {
         }
     };
 
-    const methodCheckboxes = document.querySelectorAll('.methodology-checkbox');
-    const popover = document.getElementById('methodology-popover');
-    const popoverTitle = document.getElementById('methodology-popover-title');
-    const popoverText = document.getElementById('methodology-popover-text');
-    const popoverClose = document.getElementById('methodology-popover-close');
+    function updateMethodologyBadges() {
+        const container = document.getElementById('methods-badges-container');
+        if (!container) return;
+        container.innerHTML = '';
+        const methodItems = document.querySelectorAll('.custom-dropdown-menu#methods-dropdown-menu .method-checkbox-item');
+        const activeMethods = Array.from(methodItems).filter(c => c.querySelector('.methodology-checkbox').checked);
+        
+        if (activeMethods.length === 0) {
+            document.getElementById('methods-dropdown-placeholder').textContent = "Select Methodologies...";
+            return;
+        }
+        
+        document.getElementById('methods-dropdown-placeholder').textContent = `${activeMethods.length} Method(s) Selected`;
+        
+        activeMethods.forEach(c => {
+            const labelText = c.querySelector('label').textContent;
+            
+            const pill = document.createElement('div');
+            pill.className = 'selected-pill';
+            pill.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(59,130,246,0.12); border: 1px solid #3b82f6; color: var(--text-primary); border-radius: 12px; font-size: 11px; font-weight: 600; box-shadow: var(--shadow-sm);';
+            
+            pill.innerHTML = `
+                <span>${labelText}</span>
+                <i class="fa-solid fa-circle-xmark remove-pill" style="cursor: pointer; opacity: 0.7; font-size: 12px; margin-left: 2px;"></i>
+            `;
+            
+            pill.querySelector('.remove-pill').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const cb = c.querySelector('.methodology-checkbox');
+                if (cb) {
+                    cb.checked = false;
+                    cb.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            container.appendChild(pill);
+        });
+    }
+
+    const selectBoxM = document.getElementById('methods-dropdown-select');
+    const menuM = document.getElementById('methods-dropdown-menu');
+    const methodCheckboxes = menuM.querySelectorAll('.methodology-checkbox');
+    const popoverM = document.getElementById('methodology-popover');
+    const popoverTitleM = document.getElementById('methodology-popover-title');
+    const popoverTextM = document.getElementById('methodology-popover-text');
+    const popoverImgM = document.getElementById('methodology-popover-img');
+    const popoverCloseM = document.getElementById('methodology-popover-close');
+
+    if (selectBoxM && menuM) {
+        selectBoxM.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = menuM.style.display === 'block';
+            menuM.style.display = isOpen ? 'none' : 'block';
+            // Close presets dropdown if open
+            const otherMenu = document.getElementById('presets-dropdown-menu');
+            if (otherMenu) otherMenu.style.display = 'none';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#methods-dropdown-container')) {
+                menuM.style.display = 'none';
+            }
+            if (popoverM && !popoverM.contains(e.target) && !e.target.closest('.custom-option-item')) {
+                popoverM.style.display = 'none';
+            }
+        });
+    }
 
     let activeHoveredMethod = null;
-    let isPopoverPinned = false;
 
-    let popoverTimeout = null;
-
-    const showPopover = (methodKey, targetEl) => {
-        if (popoverTimeout) clearTimeout(popoverTimeout);
+    const showPopoverM = (methodKey, itemEl) => {
         const details = methodologyDetails[methodKey];
-        if (popover && details && targetEl) {
-            popoverTitle.textContent = details.title;
-            popoverText.textContent = details.text;
+        if (popoverM && details && itemEl) {
+            popoverTitleM.textContent = details.title;
+            popoverTextM.textContent = details.text;
             
-            popover.style.display = 'block';
-            popover.style.position = 'fixed';
+            // Large realistic image loading
+            if (popoverImgM) {
+                const imgMap = {
+                    Miyawaki: '/miyawaki.jpg',
+                    Syntropic: '/syntropic.jpg',
+                    FoodForest: '/foodforest.jpg',
+                    Nucleation: '/nucleation.jpg',
+                    DirectSeeding: '/directseeding.jpg',
+                    Block: '/block.jpg'
+                };
+                if (imgMap[methodKey]) {
+                    popoverImgM.src = imgMap[methodKey];
+                    popoverImgM.style.display = 'block';
+                } else {
+                    popoverImgM.style.display = 'none';
+                }
+            }
             
-            const rect = targetEl.getBoundingClientRect();
+            popoverM.style.display = 'block';
+            popoverM.style.position = 'fixed';
+            
+            const rect = itemEl.getBoundingClientRect();
             let leftPos = rect.right + 12;
             
-            // Prevent going off screen right
-            if (leftPos + popover.offsetWidth > window.innerWidth - 16) {
-                leftPos = rect.left - popover.offsetWidth - 12;
+            if (leftPos + popoverM.offsetWidth > window.innerWidth - 16) {
+                leftPos = rect.left - popoverM.offsetWidth - 12;
             }
             
             let topPos = rect.top;
-            // Prevent going off screen bottom
-            if (topPos + popover.offsetHeight > window.innerHeight - 16) {
-                topPos = window.innerHeight - popover.offsetHeight - 16;
+            if (topPos + popoverM.offsetHeight > window.innerHeight - 16) {
+                topPos = window.innerHeight - popoverM.offsetHeight - 16;
             }
             
-            popover.style.left = leftPos + 'px';
-            popover.style.top = topPos + 'px';
+            popoverM.style.left = leftPos + 'px';
+            popoverM.style.top = topPos + 'px';
             
-            // Trigger animation frame for transition
             requestAnimationFrame(() => {
-                popover.style.opacity = '1';
-                popover.style.transform = 'translateX(0)';
+                popoverM.style.opacity = '1';
+                popoverM.style.transform = 'translateX(0)';
             });
         }
     };
 
-    const hidePopover = () => {
-        if (popoverTimeout) clearTimeout(popoverTimeout);
-        popoverTimeout = setTimeout(() => {
-            if (popover) {
-                popover.style.opacity = '0';
-                popover.style.transform = 'translateX(-10px)';
-                // Hide after transition completes
-                setTimeout(() => {
-                    if (popover.style.opacity === '0') {
-                        popover.style.display = 'none';
-                    }
-                }, 200);
-            }
-            activeHoveredMethod = null;
-        }, 300); // 300ms delay to allow moving mouse over tooltip
-    };
-
-    if (popover) {
-        popover.addEventListener('mouseenter', () => {
-            if (popoverTimeout) clearTimeout(popoverTimeout);
-        });
-        popover.addEventListener('mouseleave', () => {
-            hidePopover();
-        });
-    }
-
-    if (popoverClose) {
-        popoverClose.addEventListener('click', (e) => {
+    if (popoverCloseM) {
+        popoverCloseM.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (popoverTimeout) clearTimeout(popoverTimeout);
-            if (popover) {
-                popover.style.opacity = '0';
-                popover.style.display = 'none';
+            if (popoverM) {
+                popoverM.style.opacity = '0';
+                popoverM.style.display = 'none';
             }
         });
     }
 
     methodCheckboxes.forEach(cb => {
+        const parentItem = cb.closest('.method-checkbox-item');
+        const methodKey = parentItem ? parentItem.dataset.method : null;
+
         cb.addEventListener('change', (e) => {
-            const method = e.target.id.replace('chk-method-', '');
+            const method = methodKey || cb.id.replace('chk-method-', '');
+            const methodNormalized = method.toLowerCase();
             
-            if (e.target.checked) {
-                if (method === 'block') {
+            if (cb.checked) {
+                if (methodNormalized === 'block') {
                     // Uncheck all others
                     methodCheckboxes.forEach(other => {
-                        if (other !== e.target) other.checked = false;
+                        if (other !== cb) {
+                            other.checked = false;
+                            const otherCard = other.closest('.method-checkbox-item');
+                            if (otherCard) otherCard.style.background = 'transparent';
+                        }
                     });
                 } else {
                     // Uncheck block if selecting another
                     const blockCb = document.getElementById('chk-method-block');
-                    if (blockCb) blockCb.checked = false;
+                    if (blockCb) {
+                        blockCb.checked = false;
+                        const blockCard = blockCb.closest('.method-checkbox-item');
+                        if (blockCard) blockCard.style.background = 'transparent';
+                    }
                 }
+                if (parentItem) parentItem.style.background = 'rgba(59, 130, 246, 0.08)';
             } else {
+                if (parentItem) parentItem.style.background = 'transparent';
+                
                 // If all are unchecked, default check Block
                 const anyChecked = Array.from(methodCheckboxes).some(c => c.checked);
                 if (!anyChecked) {
                     const blockCb = document.getElementById('chk-method-block');
-                    if (blockCb) blockCb.checked = true;
+                    if (blockCb) {
+                        blockCb.checked = true;
+                        const blockCard = blockCb.closest('.method-checkbox-item');
+                        if (blockCard) blockCard.style.background = 'rgba(59, 130, 246, 0.08)';
+                    }
                 }
             }
+            updateMethodologyBadges();
+            
             if (selectedCrops.length > 0) {
                 submitDesign();
             }
         });
 
-        // Hover & Click events on methodology card items
-        const parentItem = cb.closest('.method-checkbox-item');
         if (parentItem) {
-            const methodKey = parentItem.dataset.method;
-
+            // Hover events
             parentItem.addEventListener('mouseenter', () => {
                 activeHoveredMethod = methodKey;
-                showPopover(methodKey, parentItem);
+                showPopoverM(methodKey, parentItem);
             });
 
             parentItem.addEventListener('mouseleave', () => {
-                hidePopover();
+                if (popoverM) {
+                    popoverM.style.opacity = '0';
+                    popoverM.style.display = 'none';
+                }
+                activeHoveredMethod = null;
             });
 
-            // Make clicking anywhere on the card toggle its checkbox (except on the checkbox itself or info trigger)
+            // Click card toggles checkbox
             parentItem.addEventListener('click', (e) => {
-                if (e.target === cb || e.target.classList.contains('method-info-trigger')) {
-                    return;
-                }
+                if (e.target === cb) return;
                 cb.checked = !cb.checked;
                 cb.dispatchEvent(new Event('change'));
             });
         }
     });
 
-    // Default check Block Plantation initially
+    // Default check Block Plantation initially and trigger update
     const initBlockCb = document.getElementById('chk-method-block');
-    if (initBlockCb) initBlockCb.checked = true;
+    if (initBlockCb) {
+        initBlockCb.checked = true;
+        const blockCard = initBlockCb.closest('.method-checkbox-item');
+        if (blockCard) blockCard.style.background = 'rgba(59, 130, 246, 0.08)';
+    }
+    updateMethodologyBadges();
+    updatePresetBadges(); // Also call presets badge update on startup!
+
+    // Scroll listener for wheel updates
+    if (menuM) {
+        menuM.addEventListener('scroll', () => {
+            const items = menuM.querySelectorAll('.custom-option-item');
+            items.forEach(item => {
+                const rect = item.getBoundingClientRect();
+                if (window.mouseX >= rect.left && window.mouseX <= rect.right &&
+                    window.mouseY >= rect.top && window.mouseY <= rect.bottom) {
+                    const key = item.dataset.method;
+                    if (activeHoveredMethod !== key) {
+                        activeHoveredMethod = key;
+                        showPopoverM(key, item);
+                    }
+                }
+            });
+        });
+    }
+
+    // Track global mouse coordinates for custom scroll updates
+    if (!window.hasGlobalMouseTracker) {
+        window.hasGlobalMouseTracker = true;
+        window.mouseX = 0;
+        window.mouseY = 0;
+        window.addEventListener('mousemove', (e) => {
+            window.mouseX = e.clientX;
+            window.mouseY = e.clientY;
+        });
+    }
 
     // Bind Edit Layout button click listener
     const editBtn = document.getElementById('btn-edit-mode');
@@ -3620,6 +4737,7 @@ window.addEventListener('load', () => {
             isManualEdit = true;
             renderLayoutGrid(currentWidth, currentHeight);
             isManualEdit = false;
+            update3DSelectionHighlights();
         });
     }
     

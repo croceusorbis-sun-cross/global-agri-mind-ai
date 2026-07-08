@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GardenAI - Intelligent Garden Planner</title>
+    <!-- Global Error Catcher -->
+    <script>
+    window.addEventListener('error', function(e) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'global-js-error-banner';
+        errorDiv.style.cssText = 'position: fixed; top: 10px; left: 10px; right: 10px; background: #ef4444; color: #fff; padding: 15px; z-index: 10000; border-radius: 8px; font-family: monospace; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow-y: auto; max-height: 200px;';
+        errorDiv.innerHTML = '<strong>JS Error:</strong> ' + e.message + ' at ' + e.filename + ':' + e.lineno;
+        document.body.appendChild(errorDiv);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'global-js-error-banner';
+        errorDiv.style.cssText = 'position: fixed; top: 10px; left: 10px; right: 10px; background: #f97316; color: #fff; padding: 15px; z-index: 10000; border-radius: 8px; font-family: monospace; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow-y: auto; max-height: 200px;';
+        errorDiv.innerHTML = '<strong>Promise Rejection:</strong> ' + e.reason;
+        document.body.appendChild(errorDiv);
+    });
+    </script>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +34,7 @@
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
                 <div class="brand" style="cursor: pointer; margin-bottom: 0;" onclick="switchTab('design-tab')">
                     <i class="fa-solid fa-seedling brand-icon"></i>
                     <div class="brand-text">
@@ -29,6 +46,24 @@
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
+
+            <!-- Development Activity & Last Changes Widget -->
+            <div class="dev-activity-widget" style="margin-bottom: 16px; padding: 8px 10px; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: var(--radius-sm); font-size: 10px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; width: 100%;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="color: var(--text-secondary); font-size: 9px;">Last Changes:</span>
+                    <strong id="lbl-last-changes-date" style="color: var(--text-primary); font-size: 9px;">July 5, 2026 19:12 EST</strong>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="color: var(--text-secondary); font-size: 9px;">Dev Version:</span>
+                    <strong id="lbl-git-version" style="color: var(--text-primary); font-size: 9px; font-family: monospace;">v1.0.0</strong>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="color: var(--text-secondary); font-size: 9px;">Dev Activity:</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span class="activity-pulse" style="width: 5px; height: 5px; background: var(--accent-emerald); border-radius: 50%; display: inline-block; box-shadow: 0 0 6px var(--accent-emerald); animation: pulse 1.5s infinite;"></span>
+                        <strong style="color: var(--accent-emerald); font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;">Active Push</strong>
+                    </div>
+                </div>            </div>
             
             <nav class="nav-menu">
                 <button class="nav-item" data-tab="dashboard-tab">
@@ -96,7 +131,14 @@
                         <input type="checkbox" id="chk-distribute-layout" style="width: auto; margin: 0; cursor: pointer;">
                         <label for="chk-distribute-layout" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Distribute plants evenly (space out)</label>
                     </div>
-
+                    <div class="form-group" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                        <label for="select-overcapacity" style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; display: block;">Over-Capacity Resolution</label>
+                        <select id="select-overcapacity" style="font-size: 11px; padding: 6px 10px; width: 100%; border-radius: var(--radius-sm); background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer;">
+                            <option value="none">Show Warning (No action)</option>
+                            <option value="scale-down">Auto-Fit Presets (Scale Down)</option>
+                            <option value="expand" selected>Auto-Expand Garden Size</option>
+                        </select>
+                    </div>
                 </form>
 
                 <div class="sidebar-metrics-list" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 14px;">
@@ -209,216 +251,219 @@
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Design My Garden
                             </button>
                         </div>
-                        
-                        <!-- Multi-Select Presets Configuration -->
-                        <div class="presets-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
-                            <label style="margin-bottom: 4px;">Target Preset Allocation Plans</label>
-                            <p class="section-desc" style="margin-bottom: 10px; font-size: 11px;">Select multiple presets and specify the garden capacity percentage to allocate to each. Proportions will adjust automatically.</p>
+                                                <!-- Combined Custom Dropdowns Section (Methodologies left, Presets right) -->
+                        <div class="dropdowns-row-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; position: relative;">
+                            <div style="display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;">
+                                <!-- Left: Methodologies Dropdown -->
+                                <div class="methodologies-section" style="flex: 1; min-width: 130px; max-width: calc(50% - 6px); position: relative;">
+                                    <label style="margin-bottom: 4px; font-size: 11px;">Methodologies</label>
+                                    <div class="custom-dropdown-container" id="methods-dropdown-container" style="position: relative; width: 100%;">
+                                        <div class="custom-dropdown-select" id="methods-dropdown-select" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: all 0.2s;">
+                                            <span id="methods-dropdown-placeholder" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px;">Select Methods...</span>
+                                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; opacity: 0.7; margin-left: 4px;"></i>
+                                        </div>
+                                        
+                                        <div class="custom-dropdown-menu" id="methods-dropdown-menu" style="display: none; position: absolute; top: 105%; left: 0; width: 230px; max-height: 200px; overflow-y: auto; background: #0c100f; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 1100; box-shadow: var(--shadow-lg); padding: 4px 0;">
+                                            <!-- Miyawaki -->
+                                            <div class="method-checkbox-item custom-option-item" data-method="Miyawaki" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" id="chk-method-miyawaki" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <label for="chk-method-miyawaki" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Miyawaki Forest</label>
+                                                </div>
+                                            </div>
+                                            <!-- Syntropic -->
+                                            <div class="method-checkbox-item custom-option-item" data-method="Syntropic" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" id="chk-method-syntropic" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <label for="chk-method-syntropic" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Syntropic Agroforestry</label>
+                                                </div>
+                                            </div>
+                                            <!-- Food Forest -->
+                                            <div class="method-checkbox-item custom-option-item" data-method="FoodForest" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" id="chk-method-foodforest" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <label for="chk-method-foodforest" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Food Forest (Permaculture)</label>
+                                                </div>
+                                            </div>
+                                            <!-- Nucleation -->
+                                            <div class="method-checkbox-item custom-option-item" data-method="Nucleation" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" id="chk-method-nucleation" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <label for="chk-method-nucleation" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Applied Nucleation</label>
+                                                </div>
+                                            </div>
+                                            <!-- Direct Seeding -->
+                                            <div class="method-checkbox-item custom-option-item" data-method="DirectSeeding" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" id="chk-method-directseeding" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <label for="chk-method-directseeding" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Direct Seeding</label>
+                                                </div>
+                                            </div>
+                                            <!-- Block -->
+                                            <div class="method-checkbox-item custom-option-item" data-method="Block" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" id="chk-method-block" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <label for="chk-method-block" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary);">Block Plantation</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Right: Allocation Plans Dropdown -->
+                                <div class="presets-section" style="flex: 1; min-width: 130px; max-width: calc(50% - 6px); position: relative;">
+                                    <label style="margin-bottom: 4px;">Allocation Plans</label>
+                                    <div class="custom-dropdown-container" id="presets-dropdown-container" style="position: relative; width: 100%;">
+                                        <div class="custom-dropdown-select" id="presets-dropdown-select" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: all 0.2s;">
+                                            <span id="presets-dropdown-placeholder" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px;">Select Plans...</span>
+                                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; opacity: 0.7; margin-left: 4px;"></i>
+                                        </div>
+                                        
+                                        <div class="custom-dropdown-menu" id="presets-dropdown-menu" style="display: none; position: absolute; top: 105%; left: 0; width: 220px; max-height: 240px; overflow-y: auto; background: #0c100f; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 1100; box-shadow: var(--shadow-lg); padding: 4px 0;">
+                                            <!-- Pizza Sauce -->
+                                            <div class="preset-card custom-option-item" data-preset="pizza" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🍕 Pizza Sauce</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Salad Greens -->
+                                            <div class="preset-card custom-option-item" data-preset="salad" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🥗 Salad Greens</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Berry Patch -->
+                                            <div class="preset-card custom-option-item" data-preset="berry" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🍓 Berry Patch</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Stew Staples -->
+                                            <div class="preset-card custom-option-item" data-preset="stew" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🍲 Stew Staples</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Fruit Orchard -->
+                                            <div class="preset-card custom-option-item" data-preset="orchard" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🍎 Fruit Orchard</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Salsa Garden -->
+                                            <div class="preset-card custom-option-item" data-preset="salsa" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🌶️ Salsa Garden</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Wellness Herb -->
+                                            <div class="preset-card custom-option-item" data-preset="wellness" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🩹 Wellness Herb</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Pollinator Haven -->
+                                            <div class="preset-card custom-option-item" data-preset="pollinator" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🦋 Pollinator Haven</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Three Sisters -->
+                                            <div class="preset-card custom-option-item" data-preset="threesisters" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🌽 Three Sisters</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Super Greens -->
+                                            <div class="preset-card custom-option-item" data-preset="supergreens" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🥬 Super Greens</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Cover Crops -->
+                                            <div class="preset-card custom-option-item" data-preset="covercrop" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🍀 Cover Crops</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                            <!-- Nitrogen Fix -->
+                                            <div class="preset-card custom-option-item" data-preset="nitrofix" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+                                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-primary);">🧪 Nitrogen Fix</span>
+                                                </div>
+                                                <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
+                                                    <input type="number" class="preset-pct" value="50" min="5" max="100" style="width: 38px; padding: 2px 4px; font-size: 10px; height: 18px; text-align: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
+                                                    <span style="font-size: 10px; color: var(--text-secondary);">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             
-                            <div class="presets-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px;">
-                                <!-- Preset 1 -->
-                                <div class="preset-card" data-preset="pizza" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍕 Pizza Sauce</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Preset 2 -->
-                                <div class="preset-card" data-preset="salad" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🥗 Salad Greens</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 3 -->
-                                <div class="preset-card" data-preset="berry" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍓 Berry Patch</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 4 -->
-                                <div class="preset-card" data-preset="stew" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍲 Stew Staples</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 5 -->
-                                <div class="preset-card" data-preset="orchard" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍎 Fruit Orchard</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 6 -->
-                                <div class="preset-card" data-preset="salsa" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🌶️ Salsa Garden</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 7 -->
-                                <div class="preset-card" data-preset="wellness" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🩹 Wellness Herb</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 8 -->
-                                <div class="preset-card" data-preset="pollinator" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🦋 Pollinator Haven</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 9 -->
-                                <div class="preset-card" data-preset="threesisters" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🌽 Three Sisters</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 10 -->
-                                <div class="preset-card" data-preset="supergreens" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🥬 Super Greens</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 11 -->
-                                <div class="preset-card" data-preset="covercrop" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🍀 Cover Crops</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
-
-                                <!-- Preset 12 -->
-                                <div class="preset-card" data-preset="nitrofix" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                    <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
-                                        <span style="font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">🧪 Nitrogen Fix</span>
-                                        <input type="checkbox" class="preset-toggle" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                    </div>
-                                    <div class="preset-pct-container" style="display: none; align-items: center; gap: 4px;">
-                                        <input type="number" class="preset-pct" value="50" min="5" max="100" style="padding: 2px 4px; font-size: 10px; height: 20px; text-align: center; flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;">
-                                        <span style="font-size: 10px; color: var(--text-secondary);">%</span>
-                                    </div>
-                                </div>
+                            <!-- Badges container row -->
+                            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                                <div class="selected-badges-container" id="methods-badges-container" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                                <div class="selected-badges-container" id="presets-badges-container" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
                             </div>
 
-                            <!-- Planting Methodologies Grid (Moved below Preset Plans) -->
-                            <div class="methodologies-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; position: relative;">
-                                <label style="margin-bottom: 4px;">Planting Methodologies</label>
-                                <p class="section-desc" style="margin-bottom: 10px; font-size: 11px;">Select a planting methodology to customize the spatial density, layout, pathways, and crop layer configurations.</p>
-                                
-                                <div class="methodologies-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; margin-bottom: 12px;">
-                                    <!-- Miyawaki -->
-                                    <div class="method-checkbox-item" data-method="Miyawaki" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                            <input type="checkbox" id="chk-method-miyawaki" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                            <label for="chk-method-miyawaki" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Miyawaki Forest</label>
-                                        </div>
-                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Miyawaki" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
-                                    </div>
-                                    <!-- Syntropic -->
-                                    <div class="method-checkbox-item" data-method="Syntropic" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                            <input type="checkbox" id="chk-method-syntropic" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                            <label for="chk-method-syntropic" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Syntropic Agroforestry</label>
-                                        </div>
-                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Syntropic" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
-                                    </div>
-                                    <!-- Food Forest -->
-                                    <div class="method-checkbox-item" data-method="FoodForest" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                            <input type="checkbox" id="chk-method-foodforest" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                            <label for="chk-method-foodforest" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Food Forest (Permaculture)</label>
-                                        </div>
-                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="FoodForest" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
-                                    </div>
-                                    <!-- Nucleation -->
-                                    <div class="method-checkbox-item" data-method="Nucleation" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                            <input type="checkbox" id="chk-method-nucleation" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                            <label for="chk-method-nucleation" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Applied Nucleation</label>
-                                        </div>
-                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Nucleation" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
-                                    </div>
-                                    <!-- Direct Seeding -->
-                                    <div class="method-checkbox-item" data-method="DirectSeeding" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                            <input type="checkbox" id="chk-method-directseeding" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                            <label for="chk-method-directseeding" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Direct Seeding</label>
-                                        </div>
-                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="DirectSeeding" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
-                                    </div>
-                                    <!-- Block -->
-                                    <div class="method-checkbox-item" data-method="Block" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;">
-                                        <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                            <input type="checkbox" id="chk-method-block" class="methodology-checkbox" style="width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0;">
-                                            <label for="chk-method-block" style="display: inline; margin: 0; cursor: pointer; text-transform: none; font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Block Plantation</label>
-                                        </div>
-                                        <i class="fa-solid fa-circle-info method-info-trigger" data-method="Block" style="cursor: pointer; color: var(--text-secondary); font-size: 11px; padding: 2px;"></i>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style="display: flex; gap: 8px; align-items: center;">
+                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
                                 <button type="button" id="btn-apply-selected-presets" class="btn" style="flex: 1; padding: 0 12px; font-size: 11px; height: 28px; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 600; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i> Apply Selected Plans
                                 </button>
@@ -440,22 +485,33 @@
                                 <h3>Plot Layout Preview</h3>
                                 <div class="layout-toggle" style="display: flex; gap: 8px; align-items: center;">
                                     <button class="toggle-btn" id="btn-edit-mode" style="border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout</button>
-                                    <button class="toggle-btn active" id="btn-3d-view">3D View</button>
-                                    <button class="toggle-btn" id="btn-layout-view">Layout</button>
+                                    <div class="segmented-control" id="view-toggle-container">
+                                        <button class="segment-btn active" id="btn-view-3d"><i class="fa-solid fa-cube" style="margin-right: 4px;"></i> 3D View</button>
+                                        <button class="segment-btn" id="btn-view-2d"><i class="fa-solid fa-map" style="margin-right: 4px;"></i> 2D Layout</button>
+                                    </div>
+                                    <button class="toggle-btn" id="btn-sun-animate" style="border-color: rgba(245, 158, 11, 0.4); min-width: 96px;"><i class="fa-solid fa-sun" style="margin-right: 4px;"></i> Sun Path</button>
                                 </div>
                             </div>
                             <div class="layout-canvas-container">
-                                <!-- Dynamic Compass Rose Widget -->
-                                <div class="compass-widget" title="Garden Orientation (North is North)">
+                                <!-- Dynamic Compass Rose Widget with Draggable Inner Dial -->
+                                <div class="compass-widget" title="Garden Orientation (Drag inner dial to rotate garden plot relative to North)">
+                                    <div class="compass-outer-ring" id="compass-outer-ring">
+                                        <span class="compass-marker n">N</span>
+                                        <span class="compass-marker e">E</span>
+                                        <span class="compass-marker s">S</span>
+                                        <span class="compass-marker w">W</span>
+                                    </div>
                                     <div class="compass-dial">
-                                        <span class="cardinal north">N</span>
-                                        <span class="cardinal south">S</span>
-                                        <span class="cardinal east">E</span>
-                                        <span class="cardinal west">W</span>
                                         <div class="compass-needle" id="compass-needle"></div>
                                     </div>
                                 </div>
+                                <div id="compass-angle-display" style="position: absolute; top: 110px; right: 20px; font-size: 9px; font-weight: 700; color: var(--text-secondary); background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); z-index: 995; pointer-events: none; text-transform: uppercase;">Orient: 0° N</div>
                                 <div class="cad-viewport hidden" id="cad-viewport-container">
+                                    <!-- Rotatable 2D North Arrow -->
+                                    <div id="cad-north-arrow" style="position: absolute; bottom: 45px; left: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; z-index: 990; opacity: 0.65; font-family: 'Outfit', sans-serif;">
+                                        <div style="font-size: 10px; font-weight: 800; color: #ef4444; margin-bottom: 2px;">N</div>
+                                        <i class="fa-solid fa-arrow-up" style="font-size: 24px; color: #ef4444; transform: rotate(0deg); transition: transform 0.2s ease-out; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></i>
+                                    </div>
                                     <div class="y-ruler-container" id="y-ruler-pane">
                                         <div id="y-ruler" style="display: flex; flex-direction: column;"></div>
                                     </div>
@@ -476,6 +532,38 @@
                                         <strong id="tooltip-name" style="color: var(--accent-emerald); display: block; font-size: 12px; margin-bottom: 2px;">Plant</strong>
                                         <span id="tooltip-meta" style="color: var(--text-secondary); font-size: 10px; display: block; margin-bottom: 4px; font-weight: 600;">Type</span>
                                         <p id="tooltip-desc" style="margin: 0; line-height: 1.35; color: rgba(255,255,255,0.75);">Description</p>
+                                    </div>
+                                    <!-- Clock Overlay -->
+                                    <div id="3d-solar-clock" style="position: absolute; bottom: 20px; left: 20px; background: rgba(12, 16, 15, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); padding: 8px 14px; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; color: #f59e0b; z-index: 990; pointer-events: none; display: none; align-items: center; gap: 8px; box-shadow: var(--shadow-lg);">
+                                        <i class="fa-solid fa-clock"></i> <span id="solar-clock-text">08:00 AM</span>
+                                    </div>
+                                    <!-- Solar Controls Panel -->
+                                    <div id="3d-solar-controls" style="position: absolute; top: 20px; left: 20px; background: rgba(12, 16, 15, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); padding: 12px 16px; font-family: 'Outfit', sans-serif; width: 220px; z-index: 990; display: none; flex-direction: column; gap: 10px; box-shadow: var(--shadow-lg);">
+                                        <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                                            <span>Solar Arc Controls</span>
+                                            <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
+                                                <span>Shadow Stretch</span>
+                                                <span id="lbl-shadow-stretch">1.0x</span>
+                                            </div>
+                                            <input type="range" id="slider-shadow-stretch" min="1.0" max="4.0" step="0.1" value="1.0" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
+                                                <span>Shadow Contrast</span>
+                                                <span id="lbl-shadow-contrast">80%</span>
+                                            </div>
+                                            <input type="range" id="slider-shadow-contrast" min="0" max="100" step="5" value="80" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
+                                                <span>Simulation Speed</span>
+                                                <span id="lbl-sun-speed">1.0x</span>
+                                            </div>
+                                            <input type="range" id="slider-sun-speed" min="0.1" max="10.0" step="0.1" value="1.0" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -781,7 +869,7 @@
         display: none;
         position: fixed;
         z-index: 9999;
-        width: 265px;
+        width: 270px;
         padding: 14px;
         border: 1px solid var(--accent-emerald);
         border-radius: var(--radius-md);
@@ -798,6 +886,7 @@
             <i class="fa-solid fa-xmark" id="methodology-popover-close" style="cursor: pointer; color: var(--text-secondary); font-size: 12px; padding: 2px; pointer-events: auto;"></i>
         </div>
         <span id="methodology-popover-text">Hover or click a planting methodology to view details.</span>
+        <img id="methodology-popover-img" src="" style="width: 100%; height: 130px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.1); margin-top: 8px; display: none;">
     </div>
 
     <!-- Floating preset details popover -->

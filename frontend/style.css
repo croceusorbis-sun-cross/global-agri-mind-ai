@@ -611,6 +611,44 @@ input:focus, select:focus {
     color: var(--accent-emerald);
 }
 
+#btn-sun-animate.active {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+    color: #f59e0b !important;
+    border-color: #f59e0b !important;
+}
+
+/* Segmented Control Toggle Switch */
+.segmented-control {
+    display: flex;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    gap: 2px;
+}
+
+.segment-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.segment-btn:hover {
+    color: var(--text-primary);
+}
+
+.segment-btn.active {
+    background-color: var(--accent-dark-green);
+    color: var(--accent-emerald);
+}
+
 /* Visual layout grid */
 .garden-grid-canvas {
     display: grid;
@@ -1422,66 +1460,74 @@ input:focus, select:focus {
     position: relative !important;
 }
 
-/* Dynamic Compass Rose Widget */
+/* Dynamic Compass Rose Widget with Draggable Outer Ring */
 .compass-widget {
     position: absolute;
-    top: 16px;
-    right: 16px;
-    width: 60px;
-    height: 60px;
-    background: rgba(15, 23, 20, 0.88);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 50%;
-    z-index: 995;
+    top: 20px;
+    right: 20px;
+    width: 86px;
+    height: 86px;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-    pointer-events: none; /* Let clicks pass through to canvas underneath */
+    z-index: 995;
 }
+.compass-outer-ring {
+    position: absolute;
+    width: 82px;
+    height: 82px;
+    border: 2px dashed rgba(16, 185, 129, 0.25);
+    border-radius: 50%;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 15, 13, 0.45);
+    pointer-events: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.compass-marker {
+    position: absolute;
+    font-size: 8px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.6);
+    pointer-events: none;
+    font-family: 'Outfit', sans-serif;
+}
+.compass-marker.n { top: 4px; color: #ef4444; }
+.compass-marker.e { right: 6px; }
+.compass-marker.s { bottom: 4px; }
+.compass-marker.w { left: 6px; }
 
 .compass-dial {
     position: relative;
-    width: 100%;
-    height: 100%;
+    width: 50px;
+    height: 50px;
+    background: rgba(15, 23, 20, 0.94);
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    cursor: grab;
+    transition: border-color 0.2s, background-color 0.2s;
 }
-
-.compass-dial .cardinal {
-    position: absolute;
-    font-size: 10px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.65);
-    font-family: 'Outfit', sans-serif;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+.compass-dial:hover {
+    border-color: var(--accent-emerald);
+    background-color: rgba(16, 185, 129, 0.08);
 }
-
-.compass-dial .cardinal.north {
-    top: 5px;
-    color: #ef4444; /* Bright red for North indicator */
-    font-size: 11px;
+.compass-dial:active {
+    cursor: grabbing;
 }
-
-.compass-dial .cardinal.south {
-    bottom: 5px;
-}
-
-.compass-dial .cardinal.east {
-    right: 7px;
-}
-
-.compass-dial .cardinal.west {
-    left: 7px;
-}
-
 .compass-needle {
     position: absolute;
-    width: 5px;
-    height: 32px;
+    width: 4px;
+    height: 26px;
     background: linear-gradient(to bottom, #ef4444 50%, #94a3b8 50%);
     clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     transform: rotate(0deg);
@@ -1701,6 +1747,30 @@ input:focus, select:focus {
         grid-template-columns: 1fr !important;
         gap: 20px !important;
     }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1.15); opacity: 0.7; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Gold Highlights for Selected Plant Categories */
+@keyframes gold-glow-pulse {
+    0% { outline-color: rgba(234, 179, 8, 0.4); box-shadow: 0 0 8px rgba(234, 179, 8, 0.3); }
+    50% { outline-color: rgba(234, 179, 8, 1); box-shadow: 0 0 16px rgba(234, 179, 8, 0.9); }
+    100% { outline-color: rgba(234, 179, 8, 0.4); box-shadow: 0 0 8px rgba(234, 179, 8, 0.3); }
+}
+
+.gold-highlight-2d {
+    animation: gold-glow-pulse 1.8s infinite ease-in-out;
+    transition: all 0.2s ease-in-out;
+}
+
+.crop-quantity-row.active-highlight {
+    border: 2px solid #eab308 !important;
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.45);
+    background: rgba(234, 179, 8, 0.04) !important;
 }
 
 
