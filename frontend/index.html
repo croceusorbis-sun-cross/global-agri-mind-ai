@@ -34,14 +34,7 @@
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
-                <div class="brand" style="cursor: pointer; margin-bottom: 0;" onclick="switchTab('design-tab')">
-                    <i class="fa-solid fa-seedling brand-icon"></i>
-                    <div class="brand-text">
-                        <h2>GardenAI</h2>
-                        <span>Intelligent Garden Planner</span>
-                    </div>
-                </div>
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px; width: 100%;">
                 <button id="btn-sidebar-close" style="display: none; background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 4px;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -158,43 +151,50 @@
         <!-- Main Window Container -->
         <main class="main-content">
             <!-- Header section -->
-            <header class="main-header">
-                <div class="header-title">
-                    <h1 id="tab-title">Dashboard</h1>
-                    <span id="tab-subtitle">Welcome back! Here is your garden status.</span>
-                </div>
-                <div class="header-status">
-                    <div class="status-widget">
-                        <i class="fa-solid fa-location-dot"></i>
-                        <div>
-                            <span class="widget-label">Location</span>
-                            <span class="widget-value" id="hdr-zip">48195 (Ann Arbor, MI)</span>
-                        </div>
-                    </div>
-                    <div class="status-widget">
-                        <i class="fa-solid fa-temperature-half"></i>
-                        <div>
-                            <span class="widget-label">Weather</span>
-                            <span class="widget-value">62°F Partly Cloudy</span>
-                        </div>
-                    </div>
-                    <div class="status-widget">
-                        <i class="fa-solid fa-mountain-sun"></i>
-                        <div>
-                            <span class="widget-label">Zone</span>
-                            <span class="widget-value" id="hdr-zone">Zone 6a</span>
-                        </div>
-                    </div>
-                    <div class="user-profile">
+            <header class="main-header" style="justify-content: space-between;">
+                <!-- Keep hidden elements for app.js dynamic header title calculations -->
+                <span id="tab-title" style="display: none;">Dashboard</span>
+                <span id="tab-subtitle" style="display: none;">Welcome back! Here is your garden status.</span>
+
+                <!-- Left side of main header: User profile and then dynamic status widgets (location, weather, zone) next to it -->
+                <div class="header-left" style="display: flex; align-items: center; gap: 24px;">
+                    <div class="user-profile" style="padding-left: 0; border-left: none;">
                         <img src="https://api.dicebear.com/7.x/bottts/svg?seed=GardenAI" alt="Avatar" class="avatar">
                         <div class="user-info">
                             <span class="user-name">Brett Buchanan</span>
                             <span class="user-zone">Zone 6a</span>
                         </div>
                     </div>
+                    <div class="header-status" style="display: flex; gap: 24px; border-left: 1px solid var(--border-color); padding-left: 24px; align-items: center;">
+                        <div class="status-widget">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <div>
+                                <span class="widget-label">Location</span>
+                                <span class="widget-value" id="hdr-zip">48195 (Ann Arbor, MI)</span>
+                            </div>
+                        </div>
+                        <div class="status-widget">
+                            <i class="fa-solid fa-temperature-half"></i>
+                            <div>
+                                <span class="widget-label">Weather</span>
+                                <span class="widget-value">62°F Partly Cloudy</span>
+                            </div>
+                        </div>
+                        <div class="status-widget">
+                            <i class="fa-solid fa-mountain-sun"></i>
+                            <div>
+                                <span class="widget-label">Zone</span>
+                                <span class="widget-value" id="hdr-zone">Zone 6a</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right side of main header: Placeholder for future logo -->
+                <div class="header-right-logo-container" style="display: flex; align-items: center;">
+                    <!-- User mentioned: "We will be adding a new Logo to the right hand corner where the username current is, I'm working on that now." -->
                 </div>
             </header>
-
             <!-- Content Area -->
             <section class="content-body">
                 
