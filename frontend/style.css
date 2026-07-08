@@ -178,8 +178,8 @@ h1, h2, h3, h4, h5, h6 {
     position: absolute;
     top: -4px;
     right: 0;
-    width: 480px;
-    height: 260px; /* Allow the whorled leaves to droop down elegantly */
+    width: 380px;
+    height: 180px; /* Adjusted to fit the vector logo size */
     z-index: 10;
     display: flex;
     align-items: center;
@@ -202,38 +202,68 @@ h1, h2, h3, h4, h5, h6 {
 .leaf-svg {
     width: 100%;
     height: 100%;
-    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55)) drop-shadow(0 4px 12px rgba(16, 185, 129, 0.22));
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45)) drop-shadow(0 2px 6px rgba(16, 185, 129, 0.15));
 }
 
-/* Wrapper containing the 200px GAMA logo image */
-.logo-image-wrapper {
-    position: relative;
-    height: 200px; /* Enlarge height to about 200px! */
-    width: 320px;
-    margin-top: 26px; /* Centered relative to the 260px container */
+/* Vector text logo layout styles */
+.logo-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    height: 100px;
     z-index: 2;
-    overflow: visible;
-    pointer-events: auto; /* Allow hover/interaction with the logo itself */
+    pointer-events: auto; /* Allow hover/clicks on text logo */
 }
 
-.gama-logo-img {
-    height: 100%;
-    width: 100%;
-    object-fit: contain;
-    object-position: right center;
-    /* Use mix-blend-mode to make the black background completely transparent */
-    mix-blend-mode: screen;
+.logo-gama-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gama-text {
+    font-family: 'Outfit', sans-serif;
+    font-size: 46px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #a7f3d0 0%, #4ade80 50%, #10b981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.logo-gama-container i.main-seedling {
+    color: #4ade80;
+    font-size: 28px;
+    filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.4));
+    transform: rotate(-10deg);
+}
+
+.logo-text-wrapper .sub-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 3px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    opacity: 0.95;
 }
 
 /* Ambient glow behind the logo */
 .header-organic-glow {
     position: absolute;
-    right: 30px;
-    bottom: 30px;
-    width: 220px;
-    height: 80px;
-    background: rgba(16, 185, 129, 0.18);
-    filter: blur(35px);
+    right: 20px;
+    bottom: 20px;
+    width: 200px;
+    height: 60px;
+    background: rgba(16, 185, 129, 0.12);
+    filter: blur(25px);
     border-radius: 50%;
     z-index: 0;
     pointer-events: none;
