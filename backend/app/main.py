@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from app.routes import design, plants, diagnostics
+from app.routes import design, plants, diagnostics, analytics
 
 load_dotenv()
 
@@ -21,10 +21,16 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+@app.on_event("startup")
+def on_startup():
+    from app.services.db import init_db_tables
+    init_db_tables()
+
 # Register routes
 app.include_router(design.router, prefix="/api/v1", tags=["design"])
 app.include_router(plants.router, prefix="/api/v1", tags=["plants"])
 app.include_router(diagnostics.router, prefix="/api/v1", tags=["diagnostics"])
+app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 def get_git_info():
     try:
         import subprocess

@@ -15,3 +15,17 @@ def get_db_connection():
         yield conn
     finally:
         conn.close()
+
+def init_db_tables():
+    """Initializes standard application tables if they do not exist."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS visitor_countries (
+                country_code TEXT PRIMARY KEY,
+                country_name TEXT NOT NULL,
+                visit_count INTEGER DEFAULT 1
+            );
+        """)
+        conn.commit()
+

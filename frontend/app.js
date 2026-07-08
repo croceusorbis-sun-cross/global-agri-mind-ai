@@ -4436,6 +4436,7 @@ window.addEventListener('load', () => {
     initMultiPresets();
     initAgentHub();
     initCompassDrag();
+    initVisitorNetwork();
     
     // Setup Mobile Sidebar Drawer Toggle and Close logic
     const sidebar = document.querySelector('.sidebar');
@@ -5672,3 +5673,89 @@ function initAgentHub() {
         });
     }
 }
+
+function getCountryFlag(countryCode) {
+    if (!countryCode) return "🏳️";
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map(char => 127397 + char.charCodeAt(0));
+    try {
+        return String.fromCodePoint(...codePoints);
+    } catch (e) {
+        return "🏳️";
+    }
+}
+
+async function initVisitorNetwork() {
+    const container = document.getElementById('visitor-list-container');
+    if (!container) return;
+
+    // 1. Fetch visitor's geolocation client-side
+    try {
+        const geoRes = await fetch('https://freeipapi.com/api/json');
+        if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            if (geoData && geoData.countryCode && geoData.countryName) {
+                // 2. Report hit to local backend
+                await fetch('/api/v1/analytics/hit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        country_code: geoData.countryCode,
+                        country_name: geoData.countryName
+                    })
+                });
+            }
+        }
+    } catch (err) {
+        console.warn("Client geolocation failed or blocked:", err);
+    }
+
+    // 3. Retrieve stats from local backend and render
+    try {
+        const statsRes = await fetch('/api/v1/analytics/stats');
+        if (statsRes.ok) {
+            const stats = await statsRes.json();
+            if (!stats || stats.length === 0) {
+                container.innerHTML = '<p class="placeholder-text">No visitor stats recorded yet.</p>';
+                return;
+            }
+            
+            // Calculate total visits to compute percentages
+            const totalVisits = stats.reduce((sum, item) => sum + item.visit_count, 0);
+            
+            container.innerHTML = '';
+            stats.forEach(item => {
+                const percentage = totalVisits > 0 ? Math.round((item.visit_count / totalVisits) * 100) : 0;
+                const flag = getCountryFlag(item.country_code);
+                
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.flexDirection = 'column';
+                row.style.gap = '4px';
+                
+                row.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                        <span style="color: var(--text-primary); font-weight: 600;">
+                            <span style="margin-right: 6px; font-size: 14px;">${flag}</span>${item.country_name}
+                        </span>
+                        <span style="color: var(--text-secondary); font-size: 10px; font-weight: 500;">
+                            ${item.visit_count} ${item.visit_count === 1 ? 'visit' : 'visits'} (${percentage}%)
+                        </span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.04); border-radius: 3px; overflow: hidden; position: relative;">
+                        <div style="width: ${percentage}%; height: 100%; background: linear-gradient(90deg, var(--accent-emerald), #34d399); border-radius: 3px; transition: width 0.5s ease-out;"></div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        } else {
+            container.innerHTML = '<p class="placeholder-text">Failed to load visitor stats.</p>';
+        }
+    } catch (err) {
+        console.error("Error loading visitor network stats:", err);
+        container.innerHTML = '<p class="placeholder-text">Failed to fetch network stats.</p>';
+    }
+}
+
