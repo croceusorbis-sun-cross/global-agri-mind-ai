@@ -189,20 +189,67 @@
                         </div>
                     </div>
                 </div>
-                <!-- Right side: GAMA Logo integrated with organic leaf background -->
+                <!-- Right side: GAMA Logo integrated with organic leaf background in a whorled phyllotaxis -->
                 <div class="header-logo-container">
                     <div class="header-organic-glow"></div>
                     <div class="organic-leaf-outline">
-                        <svg viewBox="0 0 320 120" class="leaf-svg" preserveAspectRatio="none">
-                            <!-- A detailed leaf shape pointing left/down, drooping below the header boundary -->
-                            <path d="M320,0 C280,0 240,5 200,10 C170,12 140,5 120,15 C105,22 95,35 80,38 C65,40 50,28 35,38 C20,48 10,65 0,75 C15,85 30,80 45,95 C55,105 50,118 70,120 C100,120 140,115 180,110 C230,105 280,100 320,100 Z" fill="#0c120f" stroke="var(--accent-emerald)" stroke-width="1.5" />
-                            <!-- Inner leaf veins drawing organic contours -->
-                            <path d="M0,75 Q80,85 180,92 T320,95" fill="none" stroke="rgba(16, 185, 129, 0.3)" stroke-width="1.5" />
-                            <path d="M35,38 Q80,60 140,75" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="1" />
-                            <path d="M80,38 Q110,55 170,68" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="1" />
-                            <path d="M120,15 Q150,40 210,55" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="1" />
-                            <path d="M45,95 Q90,90 150,88" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="1" />
-                            <path d="M70,120 Q120,105 190,100" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="1" />
+                        <svg viewBox="0 0 480 260" class="leaf-svg" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="leaf-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="rgba(16, 185, 129, 0.28)" />
+                                    <stop offset="60%" stop-color="rgba(4, 120, 87, 0.12)" />
+                                    <stop offset="100%" stop-color="rgba(10, 20, 15, 0.02)" />
+                                </linearGradient>
+                                <linearGradient id="leaf-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="rgba(52, 211, 153, 0.35)" />
+                                    <stop offset="60%" stop-color="rgba(16, 185, 129, 0.15)" />
+                                    <stop offset="100%" stop-color="rgba(10, 20, 15, 0.02)" />
+                                </linearGradient>
+                                <linearGradient id="leaf-grad-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="rgba(245, 158, 11, 0.22)" />
+                                    <stop offset="60%" stop-color="rgba(16, 185, 129, 0.12)" />
+                                    <stop offset="100%" stop-color="rgba(10, 20, 15, 0)" />
+                                </linearGradient>
+                                
+                                <!-- Detailed lobed leaf component -->
+                                <g id="lobed-leaf">
+                                    <path d="M0,0 
+                                             C20,-20 40,-25 60,-20 
+                                             C50,-5 45,5 35,15 
+                                             C55,10 75,5 95,0 
+                                             C90,15 80,25 70,35 
+                                             C90,30 110,20 130,10 
+                                             C120,30 100,50 70,60 
+                                             C40,55 20,30 0,0 Z" 
+                                          stroke="var(--accent-emerald)" 
+                                          stroke-width="1.2" />
+                                    <path d="M0,0 C40,20 80,30 130,10" fill="none" stroke="rgba(16, 185, 129, 0.4)" stroke-width="1.2" />
+                                    <path d="M35,15 C50,22 65,25 75,22" fill="none" stroke="rgba(16, 185, 129, 0.25)" stroke-width="0.8" />
+                                    <path d="M70,35 C85,42 95,45 105,42" fill="none" stroke="rgba(16, 185, 129, 0.25)" stroke-width="0.8" />
+                                </g>
+                            </defs>
+                            
+                            <!-- Background dark panel shape flowing from header -->
+                            <path d="M480,0 C420,0 350,10 300,30 C250,50 200,80 180,100 C160,120 150,150 160,180 C175,210 200,235 240,250 C290,260 380,260 480,260 Z" fill="#090f0c" stroke="rgba(16, 185, 129, 0.3)" stroke-width="1.5" />
+                            
+                            <!-- Whorled phyllotaxis arrangement of radiating leaves -->
+                            <g transform="translate(340, 130)">
+                                <!-- Layer 1: Outer/Back Whorl -->
+                                <use href="#lobed-leaf" transform="rotate(0) scale(1.6)" fill="url(#leaf-grad-1)" />
+                                <use href="#lobed-leaf" transform="rotate(45) scale(1.4)" fill="url(#leaf-grad-2)" />
+                                <use href="#lobed-leaf" transform="rotate(90) scale(1.5)" fill="url(#leaf-grad-1)" />
+                                <use href="#lobed-leaf" transform="rotate(135) scale(1.3)" fill="url(#leaf-grad-2)" />
+                                <use href="#lobed-leaf" transform="rotate(180) scale(1.5)" fill="url(#leaf-grad-1)" />
+                                <use href="#lobed-leaf" transform="rotate(225) scale(1.4)" fill="url(#leaf-grad-2)" />
+                                <use href="#lobed-leaf" transform="rotate(270) scale(1.6)" fill="url(#leaf-grad-1)" />
+                                <use href="#lobed-leaf" transform="rotate(315) scale(1.3)" fill="url(#leaf-grad-2)" />
+                                
+                                <!-- Layer 2: Inner/Glow Whorl -->
+                                <use href="#lobed-leaf" transform="rotate(22.5) scale(1.1)" fill="url(#leaf-grad-glow)" />
+                                <use href="#lobed-leaf" transform="rotate(112.5) scale(1.2)" fill="url(#leaf-grad-glow)" />
+                                <use href="#lobed-leaf" transform="rotate(202.5) scale(1.1)" fill="url(#leaf-grad-glow)" />
+                                <use href="#lobed-leaf" transform="rotate(292.5) scale(1.2)" fill="url(#leaf-grad-glow)" />
+                            </g>
                         </svg>
                     </div>
                     <div class="logo-image-wrapper">
