@@ -189,12 +189,27 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Right side of main header: Placeholder for future logo -->
-                <div class="header-right-logo-container" style="display: flex; align-items: center;">
-                    <!-- User mentioned: "We will be adding a new Logo to the right hand corner where the username current is, I'm working on that now." -->
+                <!-- Right side: GAMA Logo integrated with organic leaf background -->
+                <div class="header-logo-container">
+                    <div class="header-organic-glow"></div>
+                    <div class="organic-leaf-outline">
+                        <svg viewBox="0 0 160 80" class="leaf-svg">
+                            <!-- A beautiful stylized leaf shape pointing left, wrapping the logo -->
+                            <path d="M160,0 C120,0 80,10 50,30 C20,50 0,60 0,60 C0,60 30,70 60,75 C100,80 130,80 160,80 Z" fill="rgba(16, 185, 129, 0.05)" stroke="rgba(16, 185, 129, 0.2)" stroke-width="1.5" />
+                            <!-- leaf veins -->
+                            <path d="M0,60 C50,55 100,45 160,40" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="1" />
+                            <path d="M50,30 C60,42 80,48 90,50" fill="none" stroke="rgba(16, 185, 129, 0.1)" stroke-width="0.8" />
+                            <path d="M80,22 C90,32 110,38 120,40" fill="none" stroke="rgba(16, 185, 129, 0.1)" stroke-width="0.8" />
+                            <path d="M60,75 C70,62 90,58 100,55" fill="none" stroke="rgba(16, 185, 129, 0.1)" stroke-width="0.8" />
+                            <path d="M90,78 C100,68 120,62 130,60" fill="none" stroke="rgba(16, 185, 129, 0.1)" stroke-width="0.8" />
+                        </svg>
+                    </div>
+                    <div class="logo-image-wrapper">
+                        <img src="gama-logo.jpg" alt="GAMA Logo" class="gama-logo-img">
+                    </div>
                 </div>
             </header>
+            
             <!-- Content Area -->
             <section class="content-body">
                 
@@ -251,7 +266,19 @@
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Design My Garden
                             </button>
                         </div>
-                                                <!-- Combined Custom Dropdowns Section (Methodologies left, Presets right) -->
+                        
+                        <!-- Progress Bar Container (Hidden by default) -->
+                        <div id="layout-progress-container" style="display: none; margin-top: 12px; width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 5px;">
+                                <span id="layout-progress-status" style="font-weight: 500;">Spacing calculations...</span>
+                                <span id="layout-progress-percent" style="font-family: monospace; font-weight: 600; color: var(--accent-emerald);">0%</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.04); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.02);">
+                                <div id="layout-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-emerald), #34d399); border-radius: 3px; transition: width 0.08s ease-out; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>
+                            </div>
+                        </div>
+
+                        <!-- Combined Dropdowns Section -->
                         <div class="dropdowns-row-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; position: relative;">
                             <div style="display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;">
                                 <!-- Left: Methodologies Dropdown -->
