@@ -3603,6 +3603,14 @@ function init3D() {
         mouse3d.set(-9999, -9999);
     });
 
+    window.addEventListener('blur', () => {
+        isDragging3d = false;
+        if (typeof isDraggingDial !== 'undefined') isDraggingDial = false;
+        isDraggingPlant = false;
+        isDrawingSelectionBox = false;
+        document.body.style.cursor = '';
+    });
+
     window.addEventListener('mouseup', (e) => {
         isDragging3d = false;
 

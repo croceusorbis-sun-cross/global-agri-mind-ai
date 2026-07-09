@@ -1497,6 +1497,10 @@ input:focus, select:focus {
 
 .layout-canvas-container {
     position: relative !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* Dynamic Compass Rose Widget with Draggable Outer Ring */
