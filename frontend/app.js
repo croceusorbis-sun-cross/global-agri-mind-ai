@@ -6178,3 +6178,4 @@ function initWildForaging() {
 }
 
 
+

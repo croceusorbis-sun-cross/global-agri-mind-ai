@@ -18,6 +18,7 @@ def get_db_connection():
 
 def init_db_tables():
     """Initializes standard application tables if they do not exist."""
+    # First, check and create visitor_countries table
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -28,4 +29,24 @@ def init_db_tables():
             );
         """)
         conn.commit()
+
+        # Check if the plants table exists in the database
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='plants'")
+        table_exists = cursor.fetchone()
+
+        if not table_exists:
+            print("Plants table not found. Auto-seeding database from schema...")
+            try:
+                # Add project root to sys.path to allow importing database.seed
+                import sys
+                root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+                if root_dir not in sys.path:
+                    sys.path.insert(0, root_dir)
+                
+                from database.seed import seed_database
+                seed_database()
+                print("Database auto-seeded successfully!")
+            except Exception as err:
+                print(f"Error auto-seeding database on startup: {err}")
+
 
