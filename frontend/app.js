@@ -4437,6 +4437,9 @@ window.addEventListener('load', () => {
     initAgentHub();
     initCompassDrag();
     initVisitorNetwork();
+    initPestsHub();
+    initCompostCalculator();
+    initWildForaging();
     
     // Setup Mobile Sidebar Drawer Toggle and Close logic
     const sidebar = document.querySelector('.sidebar');
@@ -5758,4 +5761,420 @@ async function initVisitorNetwork() {
         container.innerHTML = '<p class="placeholder-text">Failed to fetch network stats.</p>';
     }
 }
+
+// ----------------------------------------------------
+// DISEASE & PEST RESISTANCE HUB
+// ----------------------------------------------------
+
+const pestsData = [
+    {
+        id: "aphid",
+        name: "Aphids",
+        scientific: "Aphidoidea",
+        category: "insect",
+        icon: "🐛",
+        symptoms: "Stunted growth, curled or yellowing leaves, sticky honeydew residue, black sooty mold.",
+        remedy: "Spray plants with a strong stream of water to dislodge them. Apply a 1% solution of organic insecticidal soap or cold-pressed neem oil during evening hours.",
+        companions: "Plant companion **Nasturtiums** or **Sweet Alyssum** (as trap crops), and aromatic herbs like **Garlic**, **Chives**, or **Mint** to repel them.",
+        entomology: "Attract beneficial predatory insects such as **Ladybugs (Ladybird Beetles)**, **Green Lacewings**, and **Hoverfly larvae**."
+    },
+    {
+        id: "spider-mite",
+        name: "Spider Mites",
+        scientific: "Tetranychidae",
+        category: "insect",
+        icon: "🕷️",
+        symptoms: "Fine webbing on undersides of leaves, yellow speckled stippling, leaf bronzing and eventual drop.",
+        remedy: "Maintain high humidity (mites love dry conditions). Spray foliage with water or apply organic rosemary oil or neem oil weekly.",
+        companions: "Plant **Dill**, **Chives**, or **Chrysanthemums** to deter them; avoid planting crop rows in dusty or extremely dry zones.",
+        entomology: "Introduce predatory mites (**Phytoseiulus persimilis**) which aggressively hunt spider mites."
+    },
+    {
+        id: "tomato-hornworm",
+        name: "Tomato Hornworm",
+        scientific: "Manduca quinquemaculata",
+        category: "insect",
+        icon: "🐛",
+        symptoms: "Large sections of nightshade leaves eaten overnight, defoliated stems, dark green/black droppings (frass) on lower foliage.",
+        remedy: "Handpick the caterpillars (inspect undersides of stems at dusk or use a UV flashlight, under which they glow fluorescent green).",
+        companions: "Plant **Marigolds**, **Basil**, or **Borage** next to tomatoes to repel the adult moths from laying eggs.",
+        entomology: "Preserve hornworms that have white egg-like cocoons on their backs—these are beneficial **Braconid parasite wasps**."
+    },
+    {
+        id: "cucumber-beetle",
+        name: "Cucumber Beetles",
+        scientific: "Diabrotica undecimpunctata",
+        category: "insect",
+        icon: "🪲",
+        symptoms: "Chewed cotyledons and leaves, holes in blossoms, transmission of bacterial wilt (which causes plants to suddenly collapse).",
+        remedy: "Use floating row covers on young seedlings. Apply organic kaolin clay to leaves or dust with diatomaceous earth around stem bases.",
+        companions: "Plant **Radishes** or **Nasturtiums** as companion trap crops; avoid planting cucumbers directly next to sage.",
+        entomology: "Attract beneficial nematodes to target larvae in the soil, and encourage soldier beetles."
+    },
+    {
+        id: "squash-bug",
+        name: "Squash Bugs",
+        scientific: "Anasa tristis",
+        category: "insect",
+        icon: "🪲",
+        symptoms: "Yellow spots on leaves that turn brown and wither, small copper-colored egg clusters on leaf undersides, vine wilting.",
+        remedy: "Scrape egg clusters off leaves immediately. Place boards on the soil at night; bugs will aggregate under them, allowing easy collection in the morning.",
+        companions: "Intercrop with **Tansy**, **Nasturtiums**, or **French Marigolds** to repel them naturally.",
+        entomology: "Encourage tachinid flies which act as natural parasites to adult squash bugs."
+    },
+    {
+        id: "slug",
+        name: "Slugs & Snails",
+        scientific: "Gastropoda",
+        category: "insect",
+        icon: "🐌",
+        symptoms: "Large, smooth holes in foliage, shredded seedling leaves, silvery slime trails left on soil and leaves.",
+        remedy: "Set beer trap cups level with the soil. Create barriers using crushed eggshells, coarse sand, or copper tape around raised beds.",
+        companions: "Plant strongly aromatic herbs like **Rosemary**, **Thyme**, or **Fennel** which slugs dislike.",
+        entomology: "Encourage ground beetles, frogs, toads, and garter snakes by providing small rock piles or water features."
+    },
+    {
+        id: "early-blight",
+        name: "Early Blight",
+        scientific: "Alternaria solani",
+        category: "disease",
+        icon: "🍄",
+        symptoms: "Target-like dark brown concentric rings on lower leaves, leaf yellowing, stem lesions, and premature defoliation.",
+        remedy: "Prune off infected lower leaves touching the ground. Apply copper fungicide or organic bio-fungicides (Bacillus subtilis).",
+        companions: "Plant **Basil** or **Marigolds** to improve soil microbiology and air flow; ensure wide spacing between nightshade rows.",
+        entomology: "Maintain healthy soil organic matter to support beneficial Trichoderma fungi that compete with blight pathogens."
+    },
+    {
+        id: "powdery-mildew",
+        name: "Powdery Mildew",
+        scientific: "Erysiphales",
+        category: "disease",
+        icon: "🌬️",
+        symptoms: "White or gray powdery coating on leaf surfaces, leaf puckering, yellowing, and drying out under humid/warm shade.",
+        remedy: "Spray foliage with a mixture of 1 tbsp baking soda, 1 tsp liquid soap, and 1 gallon of water, or diluted milk spray in sun.",
+        companions: "Plant in full sun zones with ample wind circulation. Intercrop with chives or garlic.",
+        entomology: "Not applicable (fungal pathogen); focus on supporting healthy leaf bacteria through compost tea sprays."
+    },
+    {
+        id: "deer",
+        name: "White-Tailed Deer",
+        scientific: "Odocoileus virginianus",
+        category: "animal",
+        icon: "🦌",
+        symptoms: "Cleanly sliced, ripped crop tops, missing host branches overnight, hoof prints in soil.",
+        remedy: "Install an 8-foot deer fence or double 4-foot fences. Apply organic blood-meal or hot pepper sprays to foliage.",
+        companions: "Surround sensitive vegetable beds with a dense border of deer-resistant herbs like **Lavender**, **Rosemary**, **Mint**, or **Sage**.",
+        entomology: "Not applicable; focus on physical barriers and olfactory repellents."
+    },
+    {
+        id: "rabbit",
+        name: "Wild Rabbits",
+        scientific: "Leporidae",
+        category: "animal",
+        icon: "🐇",
+        symptoms: "Neatly chewed green shoots at a 45-degree angle near the ground, missing young seedlings, pea/bean damage.",
+        remedy: "Install a 2-foot chicken wire fence buried 6 inches deep to prevent burrowing. Use wire cages around young fruit tree trunks.",
+        companions: "Plant **Onions**, **Garlic**, **Marigolds**, or **Lavender** as border buffers to mask the scent of tender crops.",
+        entomology: "Not applicable; domestic/predatory dogs or motion-activated sprinklers help deter rabbits."
+    }
+];
+
+function initPestsHub() {
+    const container = document.getElementById('pests-grid-container');
+    const searchInput = document.getElementById('pest-search');
+    const filterButtons = document.querySelectorAll('.pests-filter-btn');
+
+    if (!container) return;
+
+    let activeFilter = 'all';
+    let searchQuery = '';
+
+    function renderPests() {
+        container.innerHTML = '';
+        const filtered = pestsData.filter(pest => {
+            const matchesFilter = activeFilter === 'all' || pest.category === activeFilter;
+            const matchesSearch = !searchQuery || 
+                pest.name.toLowerCase().includes(searchQuery) ||
+                pest.symptoms.toLowerCase().includes(searchQuery) ||
+                pest.companions.toLowerCase().includes(searchQuery) ||
+                pest.remedy.toLowerCase().includes(searchQuery);
+            return matchesFilter && matchesSearch;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<p class="placeholder-text" style="grid-column: 1/-1; text-align: center; padding: 40px 0;">No matching pests or diseases found.</p>';
+            return;
+        }
+
+        filtered.forEach(pest => {
+            const card = document.createElement('div');
+            card.className = 'pest-card';
+            
+            // Highlight format helper
+            const formatBold = text => text.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--accent-emerald);">$1</strong>');
+
+            card.innerHTML = `
+                <div class="pest-card-header">
+                    <div class="pest-title"><span>${pest.icon}</span> ${pest.name}</div>
+                    <span class="pest-badge ${pest.category}">${pest.category === 'insect' ? 'Pest' : pest.category === 'disease' ? 'Disease' : 'Animal'}</span>
+                </div>
+                <div style="font-size: 10px; font-style: italic; color: var(--text-secondary); margin-top: -8px;">${pest.scientific}</div>
+                
+                <div>
+                    <div class="pest-section-title"><i class="fa-solid fa-triangle-exclamation"></i> Symptoms & Damage</div>
+                    <p class="pest-section-desc">${pest.symptoms}</p>
+                </div>
+                
+                <div>
+                    <div class="pest-section-title"><i class="fa-solid fa-flask"></i> Organic Remedy</div>
+                    <p class="pest-section-desc">${pest.remedy}</p>
+                </div>
+                
+                <div>
+                    <div class="pest-section-title"><i class="fa-solid fa-seedling"></i> Companion Repellents</div>
+                    <p class="pest-section-desc">${formatBold(pest.companions)}</p>
+                </div>
+
+                ${pest.entomology !== 'Not applicable' && pest.category !== 'animal' ? `
+                <div>
+                    <div class="pest-section-title"><i class="fa-solid fa-bug"></i> Entomology Controls</div>
+                    <p class="pest-section-desc">${formatBold(pest.entomology)}</p>
+                </div>
+                ` : ''}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // Set up search listener
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            searchQuery = searchInput.value.trim().toLowerCase();
+            renderPests();
+        });
+    }
+
+    // Set up filter buttons
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFilter = btn.dataset.filter;
+            renderPests();
+        });
+    });
+
+    renderPests();
+}
+
+// ----------------------------------------------------
+// SOIL COMPOSTING & NUTRITION CALCULATOR
+// ----------------------------------------------------
+
+function initCompostCalculator() {
+    const sliders = {
+        leaves: document.getElementById('input-leaves'),
+        woodchips: document.getElementById('input-woodchips'),
+        straw: document.getElementById('input-straw'),
+        scraps: document.getElementById('input-scraps'),
+        grass: document.getElementById('input-grass'),
+        coffee: document.getElementById('input-coffee')
+    };
+
+    const ratioDisplay = document.getElementById('compost-ratio-display');
+    const statusBadge = document.getElementById('compost-status-badge');
+    const adviceText = document.getElementById('compost-advice-text');
+
+    if (!ratioDisplay) return;
+
+    // Mathematical N & C values:
+    // Carbon weight = W * c, Nitrogen weight = W * n
+    const compostMaterials = {
+        leaves: { c: 0.48, n: 0.008 },
+        woodchips: { c: 0.40, n: 0.001 },
+        straw: { c: 0.40, n: 0.005 },
+        scraps: { c: 0.30, n: 0.020 },
+        grass: { c: 0.40, n: 0.020 },
+        coffee: { c: 0.40, n: 0.020 }
+    };
+
+    function calculateCompost() {
+        let totalCarbon = 0;
+        let totalNitrogen = 0;
+        let totalWeight = 0;
+
+        for (const [key, slider] of Object.entries(sliders)) {
+            if (!slider) continue;
+            const weight = parseFloat(slider.value);
+            totalWeight += weight;
+
+            // Update DOM label
+            const label = document.getElementById(`val-${key}`);
+            if (label) label.textContent = `${weight} lbs`;
+
+            // Calculate carbon & nitrogen
+            const specs = compostMaterials[key];
+            totalCarbon += weight * specs.c;
+            totalNitrogen += weight * specs.n;
+        }
+
+        if (totalWeight === 0) {
+            ratioDisplay.textContent = "--";
+            statusBadge.textContent = "Empty Pile";
+            statusBadge.className = "compost-ratio-status optimal";
+            adviceText.textContent = "Adjust the sliders to add Browns and Greens to your compost pile.";
+            return;
+        }
+
+        if (totalNitrogen === 0) {
+            ratioDisplay.textContent = "∞:1";
+            statusBadge.textContent = "Too High Carbon";
+            statusBadge.className = "compost-ratio-status high-cn";
+            adviceText.textContent = "Your pile contains only Carbon (Browns). Add Nitrogen-rich Greens like Food Scraps or fresh Grass Clippings to kickstart decomposition.";
+            return;
+        }
+
+        const ratio = totalCarbon / totalNitrogen;
+        ratioDisplay.textContent = `${Math.round(ratio)}:1`;
+
+        // Update UI based on ratio
+        if (ratio >= 25 && ratio <= 35) {
+            statusBadge.textContent = "Optimal Balance";
+            statusBadge.className = "compost-ratio-status optimal";
+            adviceText.textContent = "Perfect starting C:N ratio! Your compost pile has the ideal nutritional balance for beneficial microbes to generate heat and decompose quickly. Keep damp (like a wrung-out sponge) and turn weekly.";
+        } else if (ratio < 25) {
+            statusBadge.textContent = "Low C:N (Too much Greens)";
+            statusBadge.className = "compost-ratio-status low-cn";
+            adviceText.textContent = "Too much nitrogen! The pile will break down rapidly but will likely turn soggy, compact, and release a foul ammonia odor. Mix in more dry Carbon (Browns) like Autumn Leaves or Straw.";
+        } else {
+            statusBadge.textContent = "High C:N (Too much Browns)";
+            statusBadge.className = "compost-ratio-status high-cn";
+            adviceText.textContent = "Too much carbon! The pile is carbon-heavy and will decompose extremely slowly. Add more Nitrogen-rich Greens (Food Scraps, Grass Clippings, Coffee Grounds) to feed the composting bacteria.";
+        }
+    }
+
+    // Set up listeners
+    for (const slider of Object.values(sliders)) {
+        if (slider) {
+            slider.addEventListener('input', calculateCompost);
+        }
+    }
+
+    calculateCompost();
+}
+
+// ----------------------------------------------------
+// LOCAL WILD FORAGING HUB
+// ----------------------------------------------------
+
+function initWildForaging() {
+    const container = document.getElementById('forage-grid-container');
+    const zipTitle = document.getElementById('forage-zone-title');
+    const zipSubtitle = document.getElementById('forage-zone-subtitle');
+    const zipDisplayLabel = document.getElementById('lbl-forage-zip');
+    const zipInput = document.getElementById('input-zip');
+
+    if (!container) return;
+
+    function renderForage() {
+        const zip = zipInput ? zipInput.value.trim() : "48195";
+        const location = zipCodeInfo[zip] || { city: "Ann Arbor, MI", zone: "Zone 6a" };
+        
+        // Update header info labels
+        if (zipDisplayLabel) zipDisplayLabel.textContent = zip;
+        if (zipTitle) zipTitle.textContent = `Edibles Local to ${location.city}`;
+        if (zipSubtitle) zipSubtitle.textContent = `USDA Hardiness ${location.zone}`;
+
+        // Get hardiness digit (e.g. 6)
+        const digitMatch = location.zone.match(/\d+/);
+        const activeZoneDigit = digitMatch ? parseInt(digitMatch[0]) : 6;
+
+        container.innerHTML = '';
+
+        // Filter wild edibles by active zone
+        const foragePlants = allPlants.filter(p => {
+            if (p.type !== 'Wild Edible') return false;
+            const zones = p.usda_zones.split(',').map(z => parseInt(z.trim()));
+            return zones.includes(activeZoneDigit);
+        });
+
+        if (foragePlants.length === 0) {
+            container.innerHTML = '<p class="placeholder-text" style="grid-column: 1/-1; text-align: center; padding: 40px 0;">No wild foraging data seeded for your climate zone.</p>';
+            return;
+        }
+
+        foragePlants.forEach(plant => {
+            const card = document.createElement('div');
+            card.className = 'forage-card';
+            card.innerHTML = `
+                <div class="forage-header">
+                    <div class="forage-title-container">
+                        <div class="forage-name">🌿 ${plant.name}</div>
+                        <div class="forage-scientific">${plant.scientific_name}</div>
+                    </div>
+                    <span class="forage-tag">Wild Edible</span>
+                </div>
+                <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin: 0;">${plant.description}</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                    <div class="forage-detail-row edible">
+                        <span class="pest-section-title"><i class="fa-solid fa-utensils"></i> Forage & Edibility Use</span>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.85); line-height: 1.45;">
+                            ${plant.name === "Purslane" ? "Extremely rich in Omega-3 fatty acids. Juicy leaves have a crisp, lemony, and slightly salty crunch. Eat fresh in salads, stir-fries, or pickled." : 
+                              plant.name === "Lamb's Quarters" ? "Often called wild spinach. Highly mineral-rich greens. Steamed leaves are identical to spinach but more nutrient-dense. Harvest before flowers develop." :
+                              plant.name === "Dandelion" ? "Young bitter leaves make mineral-rich salad greens. Yellow flowers can be fried in batter. Root can be roasted for a caffeine-free coffee substitute." :
+                              plant.name === "Stinging Nettle" ? "Boiling completely neutralizes the stinging micro-hairs. Strained liquid makes a rich tea, and cooked leaves make a delicious nettle pesto or soup." :
+                              plant.name === "Chickweed" ? "Delicate spring green with a mild taste of sweet corn. Eat raw in sandwiches, pestos, or fresh garden salads. Leaves wilt rapidly after harvest." :
+                              "Delicate clover-like leaves with a bright, refreshing sour lemon flavor. High in vitamin C. Delicious garnish for salads, soups, or fish dishes."}
+                        </span>
+                    </div>
+
+                    <div class="forage-detail-row harvest">
+                        <span class="pest-section-title"><i class="fa-solid fa-hand"></i> Harvesting Guidelines</span>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.85); line-height: 1.45;">
+                            ${plant.name === "Purslane" ? "Pinch off the top 2-3 inches of stems. Leave the main roots intact to encourage new growth. Best harvested in the morning when moisture content is high." : 
+                              plant.name === "Lamb's Quarters" ? "Pick young tender leaves and shoots under 12 inches tall. Avoid older plants as their stems become woody and dry." :
+                              plant.name === "Dandelion" ? "Harvest young leaves from areas free of pesticides. Dig deep to pull up the whole taproot if roasting." :
+                              plant.name === "Stinging Nettle" ? "Always wear thick gardening gloves and long sleeves! Pinch the tender top 4 leaves of young plants before they flower." :
+                              plant.name === "Chickweed" ? "Harvest the lush, green growing tips with scissors. Avoid harvesting brown, seeding stems." :
+                              "Harvest leaves and stems in partial shade. Consume fresh as they wilt quickly."}
+                        </span>
+                    </div>
+
+                    <div class="forage-detail-row role">
+                        <span class="pest-section-title"><i class="fa-solid fa-earth-americas"></i> Ecological Role in Your Garden</span>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.85); line-height: 1.45;">
+                            ${plant.name === "Purslane" ? "Acts as a structural living mulch. Its low succulent canopy covers soil, reduces water evaporation, and keeps soil temperatures cool." : 
+                              plant.name === "Lamb's Quarters" ? "Its roots loosen compacted soils and bring up deep trace minerals. Composts rapidly into nitrogen-rich humus." :
+                              plant.name === "Dandelion" ? "Strong taproot drills deep into heavy clay, improving aeration and bringing up calcium from deep subsoil layers." :
+                              plant.name === "Stinging Nettle" ? "Attracts beneficial ladybugs and red admiral butterflies. Excellent compost activator due to high nitrogen content." :
+                              plant.name === "Chickweed" ? "Forming low mats, it prevents soil erosion and maintains humidity. Attracts ground beetles." :
+                              "Indicates moderately acidic, loamy soil. Keeps the soil shaded and composts easily."}
+                        </span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // Set up live trigger on zip code change
+    if (zipInput) {
+        zipInput.addEventListener('input', renderForage);
+    }
+
+    // Run forage render when we switch tabs
+    const tabNavs = document.querySelectorAll('.nav-item');
+    tabNavs.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.tab === 'wild-harvest-tab') {
+                renderForage();
+            }
+        });
+    });
+
+    // Also run initially
+    setTimeout(renderForage, 200);
+}
+
 

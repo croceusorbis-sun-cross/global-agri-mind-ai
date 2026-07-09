@@ -68,6 +68,15 @@
                 <button class="nav-item" data-tab="agents-tab">
                     <i class="fa-solid fa-users-gear"></i> Expert Hub
                 </button>
+                <button class="nav-item" data-tab="pests-tab">
+                    <i class="fa-solid fa-bug"></i> Disease & Pests
+                </button>
+                <button class="nav-item" data-tab="composting-tab">
+                    <i class="fa-solid fa-recycle"></i> Soil Composting
+                </button>
+                <button class="nav-item" data-tab="wild-harvest-tab">
+                    <i class="fa-solid fa-leaf"></i> Wild Foraging
+                </button>
                 <button class="nav-item" data-tab="calendar-tab">
                     <i class="fa-solid fa-calendar-days"></i> Calendar & Timeline
                 </button>
@@ -799,6 +808,175 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB: DISEASE & PEST RESISTANCE -->
+            <div class="tab-pane" id="pests-tab">
+                <div class="card intro-card" style="margin-bottom: 20px;">
+                    <h3>Disease & Pest Resistance Hub</h3>
+                    <p class="section-desc">Understand common garden pests, plant diseases, and wildlife damage. Filter by category, search by crop, and learn integrated organic treatments, entomology predator controls, and companion repellent configurations.</p>
+                </div>
+
+                <div class="pests-filter-bar">
+                    <button class="pests-filter-btn active" data-filter="all">All Protectors</button>
+                    <button class="pests-filter-btn" data-filter="insect">Insects & Pests</button>
+                    <button class="pests-filter-btn" data-filter="disease">Fungus & Diseases</button>
+                    <button class="pests-filter-btn" data-filter="animal">Wildlife & Animals</button>
+                    <input type="text" id="pest-search" placeholder="Search by crop or pest (e.g. Tomato, Aphid)..." style="margin-left: auto; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 12px; width: 260px;">
+                </div>
+
+                <div class="pests-grid" id="pests-grid-container">
+                    <!-- Dynamic Pest/Disease Cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- TAB: SOIL COMPOSTING & NUTRITION -->
+            <div class="tab-pane" id="composting-tab">
+                <div class="card intro-card" style="margin-bottom: 20px;">
+                    <h3>Soil Nutrition & Composting Optimizer</h3>
+                    <p class="section-desc">Optimize your soil ecosystem. Balance your organic compost using the Carbon-to-Nitrogen (C:N) ratio calculator, and review soil nutrient feeders to structure your garden bed amendments.</p>
+                </div>
+
+                <div class="compost-grid-layout">
+                    <!-- Left Column: C:N Calculator -->
+                    <div class="card" style="margin-top: 0; display: flex; flex-direction: column; gap: 20px;">
+                        <h3 style="margin-bottom: 0;"><i class="fa-solid fa-calculator text-emerald"></i> C:N Ratio Calculator</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: -10px; line-height: 1.4;">Compost microbes require a balance of Carbon ("Browns" for energy) and Nitrogen ("Greens" for protein). The ideal starting ratio is <strong>30:1</strong>.</p>
+                        
+                        <div class="compost-inputs">
+                            <!-- Browns Section -->
+                            <div class="compost-group">
+                                <div class="compost-group-title browns"><i class="fa-solid fa-tree"></i> Carbon Materials (Browns)</div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div class="compost-slider-row brown-row">
+                                        <span class="compost-slider-label">Autumn Leaves</span>
+                                        <input type="range" id="input-leaves" min="0" max="50" value="10">
+                                        <span class="compost-slider-value" id="val-leaves">10 lbs</span>
+                                    </div>
+                                    <div class="compost-slider-row brown-row">
+                                        <span class="compost-slider-label">Wood Chips</span>
+                                        <input type="range" id="input-woodchips" min="0" max="50" value="0">
+                                        <span class="compost-slider-value" id="val-woodchips">0 lbs</span>
+                                    </div>
+                                    <div class="compost-slider-row brown-row">
+                                        <span class="compost-slider-label">Straw / Hay</span>
+                                        <input type="range" id="input-straw" min="0" max="50" value="5">
+                                        <span class="compost-slider-value" id="val-straw">5 lbs</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Greens Section -->
+                            <div class="compost-group">
+                                <div class="compost-group-title greens"><i class="fa-solid fa-apple-whole"></i> Nitrogen Materials (Greens)</div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div class="compost-slider-row green-row">
+                                        <span class="compost-slider-label">Food Scraps</span>
+                                        <input type="range" id="input-scraps" min="0" max="50" value="5">
+                                        <span class="compost-slider-value" id="val-scraps">5 lbs</span>
+                                    </div>
+                                    <div class="compost-slider-row green-row">
+                                        <span class="compost-slider-label">Grass Clippings</span>
+                                        <input type="range" id="input-grass" min="0" max="50" value="10">
+                                        <span class="compost-slider-value" id="val-grass">10 lbs</span>
+                                    </div>
+                                    <div class="compost-slider-row green-row">
+                                        <span class="compost-slider-label">Coffee Grounds</span>
+                                        <input type="range" id="input-coffee" min="0" max="20" value="2">
+                                        <span class="compost-slider-value" id="val-coffee">2 lbs</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gauge/Output -->
+                        <div class="compost-gauge-card">
+                            <span style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px;">Estimated C:N Ratio</span>
+                            <div class="compost-ratio-value" id="compost-ratio-display">--</div>
+                            <span class="compost-ratio-status optimal" id="compost-status-badge">Calculating...</span>
+                            <p class="compost-ratio-advice" id="compost-advice-text">Adjust sliders to add ingredients to the compost pile.</p>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Crop Nutrient Requirements -->
+                    <div class="card" style="margin-top: 0; display: flex; flex-direction: column; gap: 16px;">
+                        <h3 style="margin-bottom: 0;"><i class="fa-solid fa-flask text-purple"></i> Crop-Specific Feeding Guide</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: -10px; line-height: 1.4;">Feed your soil, not your plants. Match your crop feed categories to specific compost and organic soil amendments.</p>
+                        
+                        <div class="nutrition-grid">
+                            <div class="nutrition-card">
+                                <div class="nutrition-card-header">
+                                    <div class="nutrition-card-title">🍅 Heavy Feeders</div>
+                                    <span class="nutrition-card-badge heavy">High N-P-K + Calcium</span>
+                                </div>
+                                <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin: 0;">
+                                    <strong>Crops:</strong> Tomatoes, Peppers, Zucchini, Broccoli, Cabbage, Corn.<br>
+                                    <strong>Soil Strategy:</strong> Need lots of nitrogen for growth, and high calcium/phosphorus to prevent Blossom-End Rot. Dig in 2-3 inches of compost and add bone meal or agricultural gypsum before planting.
+                                </p>
+                            </div>
+                            
+                            <div class="nutrition-card">
+                                <div class="nutrition-card-header">
+                                    <div class="nutrition-card-title">🥕 Root Developers</div>
+                                    <span class="nutrition-card-badge moderate">Low Nitrogen, High P-K</span>
+                                </div>
+                                <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin: 0;">
+                                    <strong>Crops:</strong> Carrots, Potatoes, Beets, Radishes, Onions.<br>
+                                    <strong>Soil Strategy:</strong> Too much nitrogen causes leafy tops but tiny/hairy roots. Focus on Potassium and Phosphorus for root enlargement. Amend soil with composted manure, wood ash, or organic kelp meal.
+                                </p>
+                            </div>
+
+                            <div class="nutrition-card">
+                                <div class="nutrition-card-header">
+                                    <div class="nutrition-card-title">🥬 Leafy Greens</div>
+                                    <span class="nutrition-card-badge light">High Nitrogen, Low P</span>
+                                </div>
+                                <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin: 0;">
+                                    <strong>Crops:</strong> Lettuce, Spinach, Arugula, Herbs.<br>
+                                    <strong>Soil Strategy:</strong> Fast-growing leafy crops need accessible nitrogen. Side-dress crops with alfalfa meal, feather meal, or leaf-mold compost mid-season.
+                                </p>
+                            </div>
+
+                            <div class="nutrition-card">
+                                <div class="nutrition-card-header">
+                                    <div class="nutrition-card-title">🫛 Soil Builders</div>
+                                    <span class="nutrition-card-badge builder">Nitrogen Fixers</span>
+                                </div>
+                                <p style="font-size: 11px; line-height: 1.45; color: var(--text-secondary); margin: 0;">
+                                    <strong>Crops:</strong> Beans, Peas, Clover, Vetch.<br>
+                                    <strong>Soil Strategy:</strong> Symbiotic roots host Rhizobia bacteria to fix atmospheric nitrogen directly. Do not fertilize with nitrogen; add light compost. Inoculate seeds before planting to maximize soil building.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: WILD HARVEST FORAGING -->
+            <div class="tab-pane" id="wild-harvest-tab">
+                <div class="card intro-card" style="margin-bottom: 20px;">
+                    <h3>Wild Native & Edible Foraging</h3>
+                    <p class="section-desc">Harvest native edible weeds and plants common to your local ZIP code region. Identify wild greens, understand sustainable harvesting guidelines, and integrate them as living soil mulches or nutritious additions to your plate.</p>
+                    <div style="margin-top: 10px; padding: 10px; background: rgba(132, 204, 22, 0.05); border-left: 3px solid #84cc16; border-radius: var(--radius-sm); font-size: 11px; color: var(--text-secondary);">
+                        <i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px; color: #84cc16;"></i> <strong>Safe Foraging Rule:</strong> Never consume any wild plant unless you have 100% positive identification. Look for key physical markers.
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.005);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h4 id="forage-zone-title" style="font-family: 'Outfit', sans-serif; font-size: 15px; margin: 0; color: var(--text-primary);">Edibles Local to Your Zone</h4>
+                            <span id="forage-zone-subtitle" style="font-size: 11px; color: var(--text-secondary);">Loading zone location...</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-location-crosshairs text-lime"></i> Location ZIP: <strong id="lbl-forage-zip">--</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="forage-grid" id="forage-grid-container">
+                    <!-- Dynamic Foraging Cards will be loaded here -->
                 </div>
             </div>
 

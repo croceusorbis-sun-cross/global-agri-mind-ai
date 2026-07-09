@@ -1826,6 +1826,354 @@ input:focus, select:focus {
     background: rgba(234, 179, 8, 0.04) !important;
 }
 
+/* GAMA Pests, Composting, Foraging Additions */
+
+/* Tabs Navigation active state */
+.nav-item.active {
+    background: rgba(16, 185, 129, 0.08) !important;
+    border-left: 3px solid var(--accent-emerald) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Pests & Diseases Styling */
+.pests-filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.pests-filter-btn {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pests-filter-btn:hover, .pests-filter-btn.active {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: var(--accent-emerald);
+    color: var(--text-primary);
+}
+
+.pests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.pest-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pest-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(16, 185, 129, 0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.pest-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pest-badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+}
+
+.pest-badge.insect { background: rgba(245, 158, 11, 0.08); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.pest-badge.disease { background: rgba(239, 68, 68, 0.08); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+.pest-badge.animal { background: rgba(59, 130, 246, 0.08); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+
+.pest-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pest-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    font-weight: 700;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pest-section-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.45;
+}
+
+/* Composting Calculator & Soil Nutrition Styling */
+.compost-grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .compost-grid-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.compost-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.compost-group-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.compost-group-title.browns { color: #d97706; }
+.compost-group-title.greens { color: #10b981; }
+
+.compost-slider-row {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.compost-slider-label {
+    font-size: 12px;
+    font-weight: 600;
+    width: 110px;
+    color: var(--text-primary);
+}
+
+.compost-slider-row input[type="range"] {
+    flex-grow: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.compost-slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.compost-slider-row.brown-row input[type="range"]::-webkit-slider-thumb { background: #d97706; }
+.compost-slider-row.green-row input[type="range"]::-webkit-slider-thumb { background: #10b981; }
+
+.compost-slider-row input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.compost-slider-value {
+    font-size: 11px;
+    font-weight: 700;
+    width: 45px;
+    text-align: right;
+    color: var(--text-secondary);
+}
+
+.compost-gauge-card {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.compost-ratio-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1;
+    margin: 10px 0;
+}
+
+.compost-ratio-status {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.compost-ratio-status.optimal { background: rgba(16, 185, 129, 0.08); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
+.compost-ratio-status.low-cn { background: rgba(239, 68, 68, 0.08); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+.compost-ratio-status.high-cn { background: rgba(59, 130, 246, 0.08); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+
+.compost-ratio-advice {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.nutrition-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.nutrition-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nutrition-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 8px;
+}
+
+.nutrition-card-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nutrition-card-badge {
+    font-size: 8px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.nutrition-card-badge.heavy { background: rgba(239, 68, 68, 0.08); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.15); }
+.nutrition-card-badge.moderate { background: rgba(245, 158, 11, 0.08); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.15); }
+.nutrition-card-badge.light { background: rgba(16, 185, 129, 0.08); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.15); }
+.nutrition-card-badge.builder { background: rgba(59, 130, 246, 0.08); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.15); }
+
+/* Wild Harvest / Foraged Weeds Tab Styling */
+.forage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.forage-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.forage-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(16, 185, 129, 0.35);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.forage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.forage-title-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.forage-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.forage-scientific {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.forage-tag {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--accent-emerald);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.forage-detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(255,255,255,0.01);
+    border-left: 2px solid rgba(255,255,255,0.05);
+    padding-left: 10px;
+}
+
+.forage-detail-row.harvest { border-left-color: var(--accent-emerald); }
+.forage-detail-row.edible { border-left-color: #a855f7; }
+.forage-detail-row.role { border-left-color: #f59e0b; }
+
 
 
 

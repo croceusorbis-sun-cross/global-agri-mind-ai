@@ -193,6 +193,77 @@ def seed_database():
                 "description": f"Beautiful {name.lower()} variety: '{var}'. Great for pollinators and companion benefits."
             })
 
+    # --- WILD EDIBLES & FORAGABLES (Total: 6) ---
+    wild_edibles = [
+        {
+            "name": "Lamb's Quarters",
+            "scientific_name": "Chenopodium album",
+            "type": "Wild Edible",
+            "sun_requirements": "Full, Partial",
+            "water_requirements": "Low",
+            "soil_preference": "Sand, Loam, Clay",
+            "usda_zones": "3,4,5,6,7,8,9,10,11",
+            "is_native": 0,
+            "description": "Known as wild spinach. Highly nutritious leaves are rich in vitamins A, C, and K, plus calcium and iron. Tastes delicious steamed or raw."
+        },
+        {
+            "name": "Purslane",
+            "scientific_name": "Portulaca oleracea",
+            "type": "Wild Edible",
+            "sun_requirements": "Full",
+            "water_requirements": "Low",
+            "soil_preference": "Sand, Loam",
+            "usda_zones": "3,4,5,6,7,8,9,10,11",
+            "is_native": 1,
+            "description": "Edible succulent rich in Omega-3 fatty acids. Has a crisp, lemony, slightly salty taste. Acts as an excellent living groundcover/mulch."
+        },
+        {
+            "name": "Dandelion",
+            "scientific_name": "Taraxacum officinale",
+            "type": "Wild Edible",
+            "sun_requirements": "Full, Partial",
+            "water_requirements": "Moderate",
+            "soil_preference": "Loam, Clay, Sand",
+            "usda_zones": "3,4,5,6,7,8,9,10",
+            "is_native": 0,
+            "description": "Every part is edible. Taproot mines minerals from deep soil. Greens are rich in potassium; roots can be roasted for a coffee alternative."
+        },
+        {
+            "name": "Stinging Nettle",
+            "scientific_name": "Urtica dioica",
+            "type": "Wild Edible",
+            "sun_requirements": "Partial, Shade",
+            "water_requirements": "Moderate, High",
+            "soil_preference": "Loam",
+            "usda_zones": "3,4,5,6,7,8,9,10",
+            "is_native": 1,
+            "description": "Nitrogen-rich mineral powerhouse. Cooking completely neutralizes sting, making a rich spinach substitute. Great compost starter."
+        },
+        {
+            "name": "Chickweed",
+            "scientific_name": "Stellaria media",
+            "type": "Wild Edible",
+            "sun_requirements": "Partial, Shade",
+            "water_requirements": "Moderate",
+            "soil_preference": "Loam, Clay",
+            "usda_zones": "3,4,5,6,7,8,9",
+            "is_native": 0,
+            "description": "Tender, cooling green with a mild flavor similar to sweet corn. Excellent raw in spring salads and as a soil-protecting green cover."
+        },
+        {
+            "name": "Wood Sorrel",
+            "scientific_name": "Oxalis stricta",
+            "type": "Wild Edible",
+            "sun_requirements": "Partial, Shade",
+            "water_requirements": "Moderate",
+            "soil_preference": "Loam, Sand",
+            "usda_zones": "4,5,6,7,8,9",
+            "is_native": 1,
+            "description": "Heart-shaped clover-like leaves with a tart, bright lemony flavor. Highly refreshing in salads. Rich in vitamin C."
+        }
+    ]
+    base_plants.extend(wild_edibles)
+
     # Ensure we insert exactly or above 200 entries (current count: ~210)
     print(f"Generated list of {len(base_plants)} plants to seed.")
 
