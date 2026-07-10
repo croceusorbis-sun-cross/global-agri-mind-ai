@@ -5932,25 +5932,33 @@ async function initVisitorNetwork() {
     const container = document.getElementById('visitor-list-container');
     if (!container) return;
 
-    // 1. Fetch visitor's geolocation client-side
+    let geoPayload = null;
+
+    // 1. Try to fetch visitor's geolocation client-side
     try {
         const geoRes = await fetch('https://freeipapi.com/api/json');
         if (geoRes.ok) {
             const geoData = await geoRes.json();
             if (geoData && geoData.countryCode && geoData.countryName) {
-                // 2. Report hit to local backend
-                await fetch('/api/v1/analytics/hit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        country_code: geoData.countryCode,
-                        country_name: geoData.countryName
-                    })
-                });
+                geoPayload = {
+                    country_code: geoData.countryCode,
+                    country_name: geoData.countryName
+                };
             }
         }
     } catch (err) {
-        console.warn("Client geolocation failed or blocked:", err);
+        console.warn("Client geolocation blocked/failed. Relying on server-side IP country lookup.");
+    }
+
+    // 2. Report hit to local backend (backend will resolve IP if payload is empty)
+    try {
+        await fetch('/api/v1/analytics/hit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(geoPayload || {})
+        });
+    } catch (err) {
+        console.error("Failed to report visitor hit:", err);
     }
 
     // 3. Retrieve stats from local backend and render
