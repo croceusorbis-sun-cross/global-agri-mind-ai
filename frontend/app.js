@@ -1620,6 +1620,13 @@ function applySelectedPresets(shouldSubmit = true) {
 function renderCropTags() {
     selectedCropsContainer.innerHTML = '';
     
+    // Hide floating botanical tooltip to prevent frozen tooltip artifact when nodes are deleted
+    const tooltip = document.getElementById('crop-info-tooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+        tooltip.style.opacity = '0';
+    }
+    
     // Sort crops by diameter: smallest (e.g. 1 ft greens) at top, largest (e.g. 8 ft trees) at bottom
     selectedCrops.sort((a, b) => getPlantDiameter(a) - getPlantDiameter(b));
     
