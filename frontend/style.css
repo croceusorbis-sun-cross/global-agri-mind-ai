@@ -2187,14 +2187,20 @@ input:focus, select:focus {
 }
 
 .flow-step {
-    border-bottom: none;
-    padding-bottom: 0;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-md);
+    padding: 16px !important;
     min-width: 0; /* Prevents overflow of grid columns */
+    transition: all 0.25s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.flow-step.step-1, .flow-step.step-3 {
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    padding-right: 24px;
+.flow-step:hover {
+    background: rgba(255, 255, 255, 0.025);
+    border-color: rgba(16, 185, 129, 0.18);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
 }
 
 .flow-action-row {
@@ -2240,19 +2246,7 @@ input:focus, select:focus {
 @media (max-width: 1024px) {
     .garden-design-flow-card {
         grid-template-columns: 1fr !important;
-        gap: 20px;
-    }
-    
-    .flow-step.step-1, .flow-step.step-3 {
-        border-right: none;
-        padding-right: 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding-bottom: 16px;
-    }
-    
-    .flow-step.step-2 {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding-bottom: 16px;
+        gap: 16px;
     }
     
     .flow-action-row {
