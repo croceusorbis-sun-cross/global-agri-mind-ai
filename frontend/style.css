@@ -1199,70 +1199,92 @@ input:focus, select:focus {
 /* Crop Quantity Adjustment Row styling */
 .crop-quantity-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: rgba(255, 255, 255, 0.01);
+    flex-direction: column;
+    align-items: flex-start;
+    background-color: rgba(255, 255, 255, 0.015);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: 6px 10px;
-    margin-bottom: 6px;
-    gap: 8px;
+    padding: 12px !important;
+    margin-bottom: 8px;
+    gap: 10px;
     transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .crop-quantity-row:hover {
     border-color: rgba(255, 255, 255, 0.05);
-    background-color: rgba(255, 255, 255, 0.015);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+
+.crop-quantity-row .crop-header-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    padding-bottom: 6px;
 }
 
 .crop-quantity-row .crop-info {
-    flex: 2;
+    flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
 }
 
 .crop-quantity-row .crop-name {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.crop-quantity-row .crop-type-badge {
-    font-size: 8px;
-    text-transform: uppercase;
-    color: var(--accent-emerald);
+    font-size: 12.5px;
     font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.crop-quantity-row .crop-inputs {
-    flex: 3;
-    display: flex;
+.crop-quantity-row .crop-inputs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+    width: 100%;
 }
 
 .crop-quantity-row .input-qty-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    flex: 1;
+    gap: 4px;
 }
 
 .crop-quantity-row .input-qty-group label {
-    font-size: 8px;
+    font-size: 9px;
     color: var(--text-secondary);
     text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     margin-bottom: 0;
 }
 
-.crop-quantity-row .input-qty-group input {
-    padding: 2px 4px;
+.crop-quantity-row .input-qty-group input,
+.crop-quantity-row .input-qty-group .readonly-box {
+    padding: 6px 4px;
+    height: 30px;
+    box-sizing: border-box;
     font-size: 11px;
     text-align: center;
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(0, 0, 0, 0.3) !important;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     color: #ffffff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.crop-quantity-row .input-qty-group input:focus {
+    border-color: var(--accent-emerald);
+    outline: none;
 }
 
 .crop-quantity-row .remove-crop-row-btn {
@@ -1270,15 +1292,27 @@ input:focus, select:focus {
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 11px;
-    padding: 4px;
-    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 4px;
     transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .crop-quantity-row .remove-crop-row-btn:hover {
     color: #ef4444;
-    background-color: rgba(239, 68, 68, 0.05);
+}
+
+.crop-quantity-row .crop-sub-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
 }
 
 /* Top-Down Plant SVG graphic overlays */

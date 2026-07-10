@@ -1757,28 +1757,32 @@ function renderCropTags() {
         }
 
         row.innerHTML = `
-            <div class="crop-info" style="cursor: pointer; flex: 1;">
-                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+            <div class="crop-header-row">
+                <button class="remove-crop-row-btn" data-idx="${index}"><i class="fa-solid fa-trash"></i></button>
+                <div class="crop-info" style="cursor: pointer;">
                     <strong class="crop-name">${crop.name}</strong>
                     ${zoneWarningHtml}
                     ${pottedBadgeHtml}
                 </div>
-                <span class="crop-type-badge">${crop.type} (Spread: ${spreadText})</span>
-                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 3px; font-weight: 500;">
-                    <i class="fa-solid fa-arrows-to-dot" style="color: var(--accent-emerald); margin-right: 4px;"></i>Req: <strong>${areaText}</strong>
-                </div>
             </div>
-            <div class="crop-inputs">
+            <div class="crop-inputs-grid">
                 <div class="input-qty-group">
                     <label>${qtyLabel}</label>
                     <input type="number" class="qty-input" value="${crop.quantity}" min="1" max="1000" data-idx="${index}" data-type="qty">
+                </div>
+                <div class="input-qty-group">
+                    <label>Req. Space</label>
+                    <div class="readonly-box">${areaText}</div>
                 </div>
                 <div class="input-qty-group">
                     <label>Est. Yield (${settingsWeightUnit})</label>
                     <input type="number" class="yield-input" value="${Math.round(crop.yield)}" min="1" max="10000" data-idx="${index}" data-type="yield">
                 </div>
             </div>
-            <button class="remove-crop-row-btn" data-idx="${index}"><i class="fa-solid fa-trash"></i></button>
+            <div class="crop-sub-desc">
+                <i class="fa-solid fa-seedling" style="color: var(--accent-emerald); font-size: 10px;"></i>
+                <span>${crop.type} | Spread: ${spreadText}</span>
+            </div>
         `;
         
         const infoDiv = row.querySelector('.crop-info');
