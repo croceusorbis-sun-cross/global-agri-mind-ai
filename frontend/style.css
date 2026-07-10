@@ -2180,20 +2180,30 @@ input:focus, select:focus {
 
 /* Garden Design Flowcard Styles */
 .garden-design-flow-card {
-    padding: 16px !important;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    padding: 20px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px;
 }
 
 .flow-step {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    padding-bottom: 16px;
-}
-
-.flow-step:last-child {
     border-bottom: none;
     padding-bottom: 0;
+    min-width: 0; /* Prevents overflow of grid columns */
+}
+
+.flow-step.step-1, .flow-step.step-3 {
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding-right: 24px;
+}
+
+.flow-action-row {
+    grid-column: span 2;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .flow-step-header {
@@ -2224,6 +2234,30 @@ input:focus, select:focus {
     color: var(--text-primary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Responsive grid stacking on smaller screens */
+@media (max-width: 1024px) {
+    .garden-design-flow-card {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+    }
+    
+    .flow-step.step-1, .flow-step.step-3 {
+        border-right: none;
+        padding-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 16px;
+    }
+    
+    .flow-step.step-2 {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 16px;
+    }
+    
+    .flow-action-row {
+        grid-column: span 1;
+    }
 }
 
 /* AI research status animation */
