@@ -1265,7 +1265,7 @@ function updatePresetBadges() {
     const activeCards = Array.from(presetCards).filter(c => c.querySelector('.preset-toggle').checked);
     
     if (activeCards.length === 0) {
-        document.getElementById('presets-dropdown-placeholder').textContent = "Select Allocation Plans...";
+        document.getElementById('presets-dropdown-placeholder').textContent = "Select Plans...";
         return;
     }
     
