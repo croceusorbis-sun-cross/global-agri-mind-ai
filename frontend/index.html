@@ -260,27 +260,17 @@
                                 <span class="flow-step-num">1</span>
                                 <span class="flow-step-title">Select & Add Crops</span>
                             </div>
-                            
-                            <!-- Standard catalog search -->
+                            <!-- Unified crop search and AI research -->
                             <label for="crop-search" style="font-size: 11px; margin-top: 8px; margin-bottom: 4px; display: block; font-weight: 600; color: var(--text-secondary);">
-                                <i class="fa-solid fa-magnifying-glass"></i> Search Standard Catalog
+                                <i class="fa-solid fa-magnifying-glass"></i> Search Crop Catalog
                             </label>
-                            <div style="position: relative; width: 100%; margin-bottom: 12px;">
-                                <input type="text" id="crop-search" placeholder="Search standard plants (e.g., Tomato, Basil, Marigold)..." style="width: 100%;">
+                            <div style="position: relative; width: 100%; margin-bottom: 4px;">
+                                <input type="text" id="crop-search" placeholder="Type crop name (e.g., Tomato, Paulownia, Chestnut)..." style="width: 100%;">
                                 <div id="crop-suggestions" class="suggestions-box hidden"></div>
                             </div>
-                            
-                            <!-- Separate GardenAI research search for unknown plants -->
-                            <label for="custom-plant-search" style="font-size: 11px; margin-bottom: 4px; display: block; font-weight: 600; color: var(--text-secondary);">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> Research & Add Custom Crop with AI
-                            </label>
-                            <div style="display: flex; gap: 8px; width: 100%;">
-                                <input type="text" id="custom-plant-search" placeholder="Enter unknown crop name (e.g. Paulownia, Chestnut tree)..." style="flex: 1; min-width: 0;">
-                                <button type="button" class="btn" id="btn-add-custom-plant" style="background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 700; padding: 0 16px; border-radius: var(--radius-sm); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; height: 38px; white-space: nowrap; margin: 0;">
-                                    <i class="fa-solid fa-magnifying-glass-plus"></i> Research
-                                </button>
+                            <div style="font-size: 9.5px; opacity: 0.6; margin-top: 6px; line-height: 1.3;">
+                                <i class="fa-solid fa-circle-info"></i> If a plant is not found, select the option to research it with GardenAI from the suggestions list.
                             </div>
-                            <div id="custom-plant-status" style="display: none; font-size: 10px; font-weight: 700; margin-top: 6px; color: var(--accent-emerald);"></div>
                         </div>
                         
                         <!-- Step 2: Choose Allocation Plans -->
