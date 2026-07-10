@@ -1732,9 +1732,19 @@ function renderCropTags() {
         }
 
         let spreadText = `${getPlantDiameter(crop)} ft`;
+        const diameter = getPlantDiameter(crop);
+        const dimVal = settingsDimUnit === 'm' ? diameter * 0.3048 : diameter;
         if (settingsDimUnit === 'm') {
-            spreadText = `${(getPlantDiameter(crop) * 0.3048).toFixed(1)} m`;
+            spreadText = `${dimVal.toFixed(1)} m`;
         }
+
+        const totalAreaReq = (crop.quantity || 0) * (dimVal * dimVal);
+        const areaUnitText = settingsDimUnit === 'm' ? "sq m" : "sq ft";
+        const areaText = `${totalAreaReq.toFixed(0)} ${areaUnitText}`;
+
+        const nameLower = crop.name.toLowerCase();
+        const isTree = nameLower.includes("tree") || nameLower.includes("chestnut") || nameLower.includes("walnut") || nameLower.includes("oak") || nameLower.includes("maple") || nameLower.includes("pecan") || nameLower.includes("paulownia") || (crop.type && crop.type.toLowerCase().includes("tree"));
+        const qtyLabel = isTree ? "Trees" : "Plants";
 
         const row = document.createElement('div');
         row.className = 'crop-quantity-row';
@@ -1754,10 +1764,13 @@ function renderCropTags() {
                     ${pottedBadgeHtml}
                 </div>
                 <span class="crop-type-badge">${crop.type} (Spread: ${spreadText})</span>
+                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 3px; font-weight: 500;">
+                    <i class="fa-solid fa-arrows-to-dot" style="color: var(--accent-emerald); margin-right: 4px;"></i>Req: <strong>${areaText}</strong>
+                </div>
             </div>
             <div class="crop-inputs">
                 <div class="input-qty-group">
-                    <label>Plants</label>
+                    <label>${qtyLabel}</label>
                     <input type="number" class="qty-input" value="${crop.quantity}" min="1" max="1000" data-idx="${index}" data-type="qty">
                 </div>
                 <div class="input-qty-group">
