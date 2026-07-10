@@ -161,7 +161,15 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
         soil = "Loam"
         zones = "3,4,5,6,7,8,9,10"
         
-        if "tree" in name_lower or "orchard" in name_lower:
+        is_known_tree = any(k in name_lower for k in [
+            "tree", "orchard", "chestnut", "walnut", "pecan", "hazelnut", 
+            "oak", "maple", "pine", "cedar", "elm", "birch", "willow", 
+            "fir", "spruce", "cypress", "redwood", "beech", "ash", "poplar", 
+            "hickory", "alder", "linden", "paulownia", "cherry blossom", 
+            "magnolia", "dogwood"
+        ])
+        
+        if is_known_tree:
             plant_type = "Fruit Tree"
             zones = "4,5,6,7,8,9"
         elif "berry" in name_lower or "strawberry" in name_lower or "raspberry" in name_lower or "blackberry" in name_lower:
@@ -194,7 +202,15 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
             max_rad = 15.0
             canopy_shape = "rounded"
             foliage_color = "#4a7c59"
-        elif "tree" in name_lower or type_lower == "fruit tree":
+        elif any(k in name_lower for k in ["chestnut", "walnut", "oak", "maple", "pecan"]):
+            plant_type = "Fruit Tree"
+            height = 35.0
+            width = 25.0
+            min_rad = 10.0
+            max_rad = 12.5
+            canopy_shape = "rounded"
+            foliage_color = "#3b7a57"
+        elif "tree" in name_lower or type_lower == "fruit tree" or is_known_tree:
             height = 15.0
             width = 8.0
             min_rad = 3.0

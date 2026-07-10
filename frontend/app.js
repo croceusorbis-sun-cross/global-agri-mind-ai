@@ -1094,10 +1094,81 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Research & Add Custom Plant via AI
+const customPlantSearch = document.getElementById('custom-plant-search');
+const btnAddCustomPlant = document.getElementById('btn-add-custom-plant');
+const customPlantStatus = document.getElementById('custom-plant-status');
+
+if (btnAddCustomPlant && customPlantSearch) {
+    const handleCustomAdd = async () => {
+        const query = customPlantSearch.value.trim();
+        if (!query) return;
+
+        if (customPlantStatus) {
+            customPlantStatus.style.display = 'block';
+            customPlantStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Researching botanical properties using GardenAI...';
+            customPlantStatus.style.color = 'var(--accent-emerald)';
+        }
+        btnAddCustomPlant.disabled = true;
+
+        try {
+            const response = await fetch('/api/v1/plants/custom', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: query })
+            });
+
+            if (response.ok) {
+                const newPlant = await response.json();
+                
+                // Add to global catalog array if not already present
+                if (!allPlants.some(p => p.id === newPlant.id || p.name.toLowerCase() === newPlant.name.toLowerCase())) {
+                    allPlants.push(newPlant);
+                }
+
+                // Add as crop tag
+                addCropTag(newPlant);
+
+                customPlantSearch.value = '';
+                if (customPlantStatus) {
+                    customPlantStatus.innerHTML = `✨ Successfully researched and added <strong>${newPlant.name}</strong>!`;
+                    customPlantStatus.style.color = 'var(--accent-emerald)';
+                    setTimeout(() => {
+                        customPlantStatus.style.display = 'none';
+                    }, 5000);
+                }
+            } else {
+                const errData = await response.json().catch(() => ({}));
+                const errMsg = errData.detail || "Failed to analyze plant details. Try a different name.";
+                if (customPlantStatus) {
+                    customPlantStatus.innerHTML = `⚠️ ${errMsg}`;
+                    customPlantStatus.style.color = '#f59e0b';
+                }
+            }
+        } catch (err) {
+            console.error("Custom plant query failed:", err);
+            if (customPlantStatus) {
+                customPlantStatus.innerHTML = '⚠️ Connection error researching botanical catalog.';
+                customPlantStatus.style.color = '#ef4444';
+            }
+        } finally {
+            btnAddCustomPlant.disabled = false;
+        }
+    };
+
+    btnAddCustomPlant.addEventListener('click', handleCustomAdd);
+    customPlantSearch.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleCustomAdd();
+        }
+    });
+}
+
 // Add Crop Tag
 function addCropTag(plant) {
     const nameLower = plant.name.toLowerCase();
-    const defaultQty = nameLower.includes("tree") ? 1 : (nameLower.includes("zucchini") || nameLower.includes("squash") ? 4 : 6);
+    const isTree = nameLower.includes("tree") || nameLower.includes("chestnut") || nameLower.includes("walnut") || nameLower.includes("oak") || nameLower.includes("maple") || nameLower.includes("pecan") || nameLower.includes("paulownia") || (plant.type && plant.type.toLowerCase().includes("tree"));
+    const defaultQty = isTree ? 1 : (nameLower.includes("zucchini") || nameLower.includes("squash") ? 4 : 6);
     let yieldPer = getYieldPerPlant(plant);
     if (settingsWeightUnit === 'kg') {
         yieldPer = yieldPer * 0.453592;
@@ -2065,33 +2136,39 @@ async function submitDesign(shouldScroll = false) {
 
 // Helper to get estimated full grown diameter (in feet)
 function getPlantDiameter(plant) {
-    if (plant && plant.mature_width) {
-        return parseFloat(plant.mature_width);
-    }
-    const name = plant.name.toLowerCase();
+    if (!plant) return 1;
+    const name = (plant.name || "").toLowerCase();
     
     if (name.includes("paulownia")) return 30; // True width: 30 ft
+    if (name.includes("chestnut") || name.includes("walnut") || name.includes("oak") || name.includes("maple") || name.includes("pecan")) return 25; // Large trees: 25 ft
     if (name.includes("tree")) return 8;       // Large fruit trees: 8x8 ft
     if (name.includes("sunflower")) return 4;  // Sunflowers: 4x4 ft
     if (name.includes("squash") || name.includes("zucchini") || name.includes("pumpkin") || name.includes("melon") || name.includes("watermelon")) return 4; // Sprawling: 4x4 ft
     if (name.includes("tomato") || name.includes("cucumber")) return 3; // Stakes: 3x3 ft
     if (name.includes("pepper") || name.includes("potato") || name.includes("eggplant") || name.includes("okra") || name.includes("broccoli") || name.includes("cauliflower") || name.includes("lavender") || name.includes("rosemary")) return 2; // Bushes: 2x2 ft
+    
+    if (plant.mature_width) {
+        return parseFloat(plant.mature_width);
+    }
     return 1; // Herbs and small greens: 1x1 ft
 }
 
 // Helper to get estimated full grown height (in feet) for sun shading optimization
 function getPlantHeight(plant) {
-    if (plant && plant.mature_height) {
-        return parseFloat(plant.mature_height);
-    }
-    const name = plant.name.toLowerCase();
+    if (!plant) return 1;
+    const name = (plant.name || "").toLowerCase();
     const category = plant.type ? plant.type.toLowerCase() : "";
     
     if (name.includes("paulownia")) return 40; // True height: 40 ft
+    if (name.includes("chestnut") || name.includes("walnut") || name.includes("oak") || name.includes("maple") || name.includes("pecan")) return 35; // Large trees: 35 ft
     if (name.includes("tree") || category.includes("tree")) return 15;        // Tall fruit trees: 15 ft
     if (name.includes("sunflower")) return 8;                                 // Sunflowers: 8 ft
     if (name.includes("tomato") || name.includes("cucumber")) return 6;        // Vines / staked climbing crops: 6 ft
     if (name.includes("pepper") || name.includes("eggplant") || name.includes("broccoli") || name.includes("corn") || name.includes("okra")) return 3; // Medium bushes: 3 ft
+    
+    if (plant.mature_height) {
+        return parseFloat(plant.mature_height);
+    }
     return 1; // Leafy greens, herbs, root crops, onions, garlic: 1 ft
 }
 

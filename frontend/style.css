@@ -2178,6 +2178,60 @@ input:focus, select:focus {
 .forage-detail-row.edible { border-left-color: #a855f7; }
 .forage-detail-row.role { border-left-color: #f59e0b; }
 
+/* Garden Design Flowcard Styles */
+.garden-design-flow-card {
+    padding: 16px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.flow-step {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 16px;
+}
+
+.flow-step:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.flow-step-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.flow-step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--accent-emerald);
+    color: var(--accent-emerald);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.flow-step-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* AI research status animation */
+#custom-plant-status {
+    font-family: 'Outfit', sans-serif;
+}
+
+
 
 
 
