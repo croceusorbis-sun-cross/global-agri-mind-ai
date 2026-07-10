@@ -149,6 +149,16 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
                         text = "\n".join(lines).strip()
                         
                     parsed = json.loads(text)
+                    name_lower = plant_name.lower()
+                    is_tropical = any(k in name_lower for k in [
+                        "betel", "areca", "citrus", "lemon", "lime", "orange", "palm", 
+                        "banana", "mango", "avocado", "pomegranate", "hibiscus", 
+                        "ginger", "jasmine", "olive", "fig", "tropical"
+                    ])
+                    if is_tropical:
+                        parsed["usda_zones"] = "10,11"
+                        if any(k in name_lower for k in ["tree", "palm", "citrus", "nut"]):
+                            parsed["type"] = "Fruit Tree"
                     return parsed
             except Exception as e:
                 print(f"Gemini custom plant lookup failed: {e}")
@@ -169,7 +179,17 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
             "magnolia", "dogwood"
         ])
         
-        if is_known_tree:
+        is_tropical_plant = any(k in name_lower for k in [
+            "betel", "areca", "citrus", "lemon", "lime", "orange", "palm", 
+            "banana", "mango", "avocado", "pomegranate", "hibiscus", 
+            "ginger", "jasmine", "olive", "fig", "tropical"
+        ])
+        
+        if is_tropical_plant:
+            zones = "10,11"
+            if "tree" in name_lower or "palm" in name_lower or "citrus" in name_lower or "nut" in name_lower:
+                plant_type = "Fruit Tree"
+        elif is_known_tree:
             plant_type = "Fruit Tree"
             zones = "4,5,6,7,8,9"
         elif "berry" in name_lower or "strawberry" in name_lower or "raspberry" in name_lower or "blackberry" in name_lower:

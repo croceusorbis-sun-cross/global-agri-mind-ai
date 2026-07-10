@@ -104,7 +104,30 @@ def add_custom_plant(payload: CustomPlantPayload):
             row = cursor.fetchone()
             return dict(row)
         except sqlite3.IntegrityError:
-            # Handle duplicate key entry (fetch existing plant and return it)
+            # Update existing duplicate custom plant metadata with newly resolved heuristics/API details
+            cursor.execute("""
+                UPDATE plants 
+                SET scientific_name = ?, type = ?, sun_requirements = ?, water_requirements = ?, soil_preference = ?, usda_zones = ?, is_native = ?, description = ?, mature_height = ?, mature_width = ?, min_radius = ?, max_radius = ?, foliage_color = ?, canopy_shape = ?, fruit_color = ?
+                WHERE name LIKE ?
+            """, (
+                plant_info.get("scientific_name", f"{name} vulgaris"),
+                plant_info.get("type", "Vegetable"),
+                plant_info.get("sun_requirements", "Full Sun"),
+                plant_info.get("water_requirements", "Moderate"),
+                plant_info.get("soil_preference", "Loam"),
+                plant_info.get("usda_zones", "3,4,5,6,7,8,9,10"),
+                int(plant_info.get("is_native", 0)),
+                plant_info.get("description", ""),
+                plant_info.get("mature_height", 1.0),
+                plant_info.get("mature_width", 1.0),
+                plant_info.get("min_radius", 0.4),
+                plant_info.get("max_radius", 0.8),
+                plant_info.get("foliage_color", "#2e7d32"),
+                plant_info.get("canopy_shape", "rounded"),
+                plant_info.get("fruit_color"),
+                name
+            ))
+            conn.commit()
             cursor.execute("SELECT * FROM plants WHERE name LIKE ?", (name,))
             row = cursor.fetchone()
             if row:

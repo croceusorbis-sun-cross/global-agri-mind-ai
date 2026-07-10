@@ -2231,6 +2231,78 @@ input:focus, select:focus {
     font-family: 'Outfit', sans-serif;
 }
 
+/* Floating Botanical Tooltip Style */
+.floating-tooltip {
+    position: fixed;
+    display: none;
+    background: rgba(10, 14, 13, 0.98);
+    border: 1px solid var(--accent-emerald);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    font-size: 11px;
+    z-index: 2000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+    width: 260px;
+    color: var(--text-primary);
+    pointer-events: none;
+    line-height: 1.45;
+    backdrop-filter: blur(8px);
+    transition: opacity 0.15s ease-out;
+}
+
+.floating-tooltip-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-emerald);
+    margin-bottom: 2px;
+    font-family: 'Outfit', sans-serif;
+}
+
+.floating-tooltip-sci {
+    font-size: 10px;
+    font-style: italic;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.floating-tooltip-meta {
+    font-size: 10px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.floating-tooltip-desc {
+    color: rgba(255,255,255,0.75);
+    margin-top: 6px;
+    font-size: 10.5px;
+}
+
+.floating-tooltip-warning {
+    margin-top: 8px;
+    padding: 6px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: #f59e0b;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 9.5px;
+}
+
+/* 2D Potted Tropical Cells Outlining */
+.potted-tropical-cell {
+    outline: 2px dashed #c2410c !important;
+    outline-offset: -3px;
+    background-color: rgba(194, 65, 12, 0.08) !important;
+    transition: all 0.25s ease;
+}
+
+.potted-tropical-cell:hover {
+    background-color: rgba(194, 65, 12, 0.15) !important;
+}
+
 
 
 

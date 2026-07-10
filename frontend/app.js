@@ -1770,6 +1770,29 @@ function renderCropTags() {
             }
         }
 
+        const isTropical = isTropicalPotted(crop, currentZoneNum);
+        let pottedBadgeHtml = '';
+        if (isTropical) {
+            pottedBadgeHtml = `
+                <span class="crop-potted-badge" style="
+                    background-color: rgba(245, 158, 11, 0.1);
+                    border: 1px solid rgba(245, 158, 11, 0.35);
+                    color: #f59e0b;
+                    font-size: 9px;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    margin-left: 6px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 3px;
+                    font-weight: 700;
+                " title="Tropical plant! Must be grown in a pot and brought indoors during winter in Zone ${currentZoneNum}.">
+                    <i class="fa-solid fa-bucket"></i> Potted Tropical
+                </span>
+            `;
+            zoneWarningHtml = ''; // Replace generic red zone warning with potted advice
+        }
+
         let spreadText = `${getPlantDiameter(crop)} ft`;
         if (settingsDimUnit === 'm') {
             spreadText = `${(getPlantDiameter(crop) * 0.3048).toFixed(1)} m`;
@@ -1790,6 +1813,7 @@ function renderCropTags() {
                 <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
                     <strong class="crop-name">${crop.name}</strong>
                     ${zoneWarningHtml}
+                    ${pottedBadgeHtml}
                 </div>
                 <span class="crop-type-badge">${crop.type} (Spread: ${spreadText})</span>
             </div>
@@ -1810,6 +1834,68 @@ function renderCropTags() {
         infoDiv.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleCropHighlight(crop.name);
+        });
+
+        // Botanical Detailed Tooltip Listeners
+        const tooltip = document.getElementById('crop-info-tooltip');
+        row.addEventListener('mouseenter', (e) => {
+            if (!tooltip) return;
+            
+            const warningText = isTropical ? `
+                <div class="floating-tooltip-warning">
+                    <i class="fa-solid fa-temperature-arrow-down"></i> <strong>Potted Winter Shelter Required</strong><br>
+                    This is a tropical plant not hardy in Zone ${currentZoneNum}. To keep it alive, grow it in a pot/container and move it indoors before winter freezing.
+                </div>
+            ` : '';
+            
+            tooltip.innerHTML = `
+                <div class="floating-tooltip-title">${crop.name}</div>
+                <div class="floating-tooltip-sci">${crop.scientific_name || "Botanical species"}</div>
+                <div class="floating-tooltip-meta">
+                    <span style="color: var(--accent-emerald);">Type:</span> ${crop.type} | 
+                    <span style="color: var(--accent-emerald);">Sun:</span> ${crop.sun_requirements || "Full Sun"} | 
+                    <span style="color: var(--accent-emerald);">Water:</span> ${crop.water_requirements || "Moderate"} | 
+                    <span style="color: var(--accent-emerald);">Soil:</span> ${crop.soil_preference || "Loam"} | 
+                    <span style="color: var(--accent-emerald);">Zones:</span> ${crop.usda_zones || "Any"}
+                </div>
+                <div class="floating-tooltip-desc">${crop.description || "Interactive botanical crop."}</div>
+                ${warningText}
+            `;
+            
+            tooltip.style.display = 'block';
+            setTimeout(() => {
+                tooltip.style.opacity = '1';
+            }, 10);
+        });
+
+        row.addEventListener('mousemove', (e) => {
+            if (!tooltip) return;
+            
+            const tooltipWidth = 260;
+            const tooltipHeight = tooltip.offsetHeight || 140;
+            
+            let left = e.clientX + 15;
+            let top = e.clientY - tooltipHeight / 2;
+            
+            // Adjust bounds relative to viewport
+            if (left + tooltipWidth > window.innerWidth) {
+                left = e.clientX - tooltipWidth - 15;
+            }
+            if (top + tooltipHeight > window.innerHeight) {
+                top = window.innerHeight - tooltipHeight - 15;
+            }
+            if (top < 10) {
+                top = 10;
+            }
+            
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+        });
+
+        row.addEventListener('mouseleave', () => {
+            if (!tooltip) return;
+            tooltip.style.display = 'none';
+            tooltip.style.opacity = '0';
         });
 
         selectedCropsContainer.appendChild(row);
@@ -2132,6 +2218,19 @@ async function submitDesign(shouldScroll = false) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Design My Garden';
     }
+}
+
+// Helper to determine if a plant is a tropical variety requiring container potting for a cold zone
+function isTropicalPotted(plant, currentZoneNum) {
+    if (!plant || !plant.usda_zones) return false;
+    const allowedZones = plant.usda_zones.split(',').map(z => parseInt(z.trim())).filter(z => !isNaN(z));
+    if (allowedZones.length === 0) return false;
+    
+    const minZone = Math.min(...allowedZones);
+    const isCompatible = allowedZones.includes(currentZoneNum);
+    
+    // Flag as tropical potted if minimum zone >= 9 and it is not compatible with our colder local zone
+    return (minZone >= 9 && !isCompatible && currentZoneNum < minZone);
 }
 
 // Helper to get estimated full grown diameter (in feet)
@@ -2549,6 +2648,12 @@ function renderLayoutGrid(width, height) {
     const cols = Math.round(width);
     const rows = Math.round(height);
     
+    // Extract current USDA zone number
+    const zoneElement = document.getElementById('hdr-zone');
+    const zoneText = zoneElement ? zoneElement.textContent : "Zone 6a";
+    const zoneMatch = zoneText.match(/\d+/);
+    const currentZoneNum = zoneMatch ? parseInt(zoneMatch[0]) : 6;
+    
     document.getElementById('grid-dim-text').textContent = `${width} ft x ${height} ft (1 cell = 1 sq ft)`;
 
     // Set dynamic base cell size to fit the entire layout inside the viewport on startup
@@ -2621,6 +2726,11 @@ function renderLayoutGrid(width, height) {
                 cell.dataset.instanceId = cellData.instanceId;
                 cell.dataset.plantId = cellData.plant.id;
                 cell.dataset.plantName = cellData.plant.name;
+
+                const isTropical = isTropicalPotted(cellData.plant, currentZoneNum);
+                if (isTropical) {
+                    cell.classList.add('potted-tropical-cell');
+                }
 
                 // Highlight plant if it belongs to the highlighted category
                 if (highlightedPlantName === cellData.plant.name) {
@@ -2815,7 +2925,12 @@ function renderLayoutGrid(width, height) {
                     initialsBadge.textContent = initials;
                     cell.appendChild(initialsBadge);
 
-                    cell.title = `${cellData.plant.name} (Spread: ${cellData.diameter} ft)`;
+                    const isTropical = isTropicalPotted(cellData.plant, currentZoneNum);
+                    if (isTropical) {
+                        cell.title = `${cellData.plant.name} (Potted Tropical - Spread: ${cellData.diameter} ft)`;
+                    } else {
+                        cell.title = `${cellData.plant.name} (Spread: ${cellData.diameter} ft)`;
+                    }
                 }
 
                 if (cellData.understory) {
@@ -4192,6 +4307,44 @@ function buildSimplifiedConeModel(plant, diameter) {
         text: colors.text
     };
 
+    // Calculate current USDA zone number dynamically
+    const zoneElement = document.getElementById('hdr-zone');
+    const zoneText = zoneElement ? zoneElement.textContent : "Zone 6a";
+    const zoneMatch = zoneText.match(/\d+/);
+    const currentZoneNum = zoneMatch ? parseInt(zoneMatch[0]) : 6;
+
+    const isTropical = isTropicalPotted(plant, currentZoneNum);
+    let plantBaseY = 0;
+
+    if (isTropical) {
+        // 1. Create clay container pot mesh
+        const potHeight = Math.max(0.4, height * 0.15); // scale pot to plant size
+        const potTopRad = Math.max(0.3, diameter * 0.25);
+        const potBotRad = potTopRad * 0.75;
+        
+        const potGeo = new THREE.CylinderGeometry(potTopRad, potBotRad, potHeight, 10);
+        const potMat = new THREE.MeshStandardMaterial({ 
+            color: 0xc2410c, // Terracotta/clay color
+            roughness: 0.85,
+            metalness: 0.1
+        });
+        const potMesh = new THREE.Mesh(potGeo, potMat);
+        potMesh.position.y = potHeight / 2;
+        potMesh.castShadow = true;
+        potMesh.receiveShadow = true;
+        coneGroup.add(potMesh);
+        
+        // 2. Add soil/dirt surface inside the pot
+        const dirtGeo = new THREE.CylinderGeometry(potTopRad * 0.95, potTopRad * 0.95, 0.04, 10);
+        const dirtMat = new THREE.MeshStandardMaterial({ color: 0x4a3525, roughness: 0.9 });
+        const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
+        dirtMesh.position.y = potHeight - 0.02;
+        coneGroup.add(dirtMesh);
+        
+        // 3. Offset subsequent plant parts to grow out of the pot
+        plantBaseY = potHeight - 0.05;
+    }
+
     if (isTree) {
         // --- 1. Trunk (Brown Cylinder) ---
         const trunkHeight = height * 0.35;
@@ -4199,7 +4352,7 @@ function buildSimplifiedConeModel(plant, diameter) {
         const trunkGeo = new THREE.CylinderGeometry(trunkRad * 0.8, trunkRad, trunkHeight, 6);
         const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9 });
         const trunkMesh = new THREE.Mesh(trunkGeo, trunkMat);
-        trunkMesh.position.y = trunkHeight / 2;
+        trunkMesh.position.y = plantBaseY + trunkHeight / 2;
         trunkMesh.castShadow = true;
         trunkMesh.receiveShadow = true;
         coneGroup.add(trunkMesh);
@@ -4235,7 +4388,7 @@ function buildSimplifiedConeModel(plant, diameter) {
         canopyMesh.castShadow = true;
         canopyMesh.receiveShadow = true;
         
-        canopyMesh.position.y = trunkHeight + canopyHeight / 2;
+        canopyMesh.position.y = plantBaseY + trunkHeight + canopyHeight / 2;
         coneGroup.add(canopyMesh);
     } else {
         // --- Standard plant cone model ---
@@ -4268,7 +4421,7 @@ function buildSimplifiedConeModel(plant, diameter) {
         coneMesh.castShadow = true;
         coneMesh.receiveShadow = true;
         
-        coneMesh.position.y = height / 2;
+        coneMesh.position.y = plantBaseY + height / 2;
         coneGroup.add(coneMesh);
     }
 
