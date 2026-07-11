@@ -913,6 +913,11 @@ function drawSunPath(width, height) {
     const initZ = radius * Math.sin(latRad);
     sunSphereMesh.position.set(initX, initY, initZ);
     visualsParentGroup.add(sunSphereMesh);
+
+    if (dirLight) {
+        dirLight.position.set(initX, initY / shadowStretchVal, initZ);
+        dirLight.castShadow = true;
+    }
 }
 
 // Load Plants on initialization
@@ -3464,11 +3469,13 @@ function init3D() {
     dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
     dirLight.position.set(20, 50, 20);
     dirLight.castShadow = true;
-    scene3d.add(dirLight);
 
     // Group Containers
     visualsParentGroup = new THREE.Group();
     scene3d.add(visualsParentGroup);
+
+    visualsParentGroup.add(dirLight);
+    visualsParentGroup.add(dirLight.target);
 
     gardenGroup3d = new THREE.Group();
     visualsParentGroup.add(gardenGroup3d);
