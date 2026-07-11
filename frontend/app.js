@@ -804,6 +804,36 @@ function getLatitudeFromZip(zipString) {
     }
 }
 
+function createNorthArrowTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear to transparent
+    ctx.clearRect(0, 0, 128, 128);
+    
+    // Draw red triangle pointer
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(64, 4); // Tip
+    ctx.lineTo(20, 124); // Bottom Left
+    ctx.lineTo(108, 124); // Bottom Right
+    ctx.closePath();
+    ctx.fill();
+    
+    // Draw black N letter in the middle
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 55px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('N', 64, 80);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    return texture;
+}
+
 function createStaticEnvironmentNorthArrow(radius) {
     const group = new THREE.Group();
     group.name = "envCompassRose";
@@ -820,22 +850,18 @@ function createStaticEnvironmentNorthArrow(radius) {
     const ring = new THREE.Mesh(ringGeo, ringMat);
     group.add(ring);
 
-    // 2. North Pointer (triangle pointing North towards -Z)
-    const arrowShape = new THREE.Shape();
-    arrowShape.moveTo(0, radius * 1.08); // Tip pointing North
-    arrowShape.lineTo(radius * 0.08, radius * 0.96);
-    arrowShape.lineTo(-radius * 0.08, radius * 0.96);
-    arrowShape.lineTo(0, radius * 1.08);
-    
-    const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+    // 2. North Pointer (triangle pointing North with black "N")
+    const arrowTex = createNorthArrowTexture();
+    const arrowGeo = new THREE.PlaneGeometry(radius * 0.16, radius * 0.12);
     arrowGeo.rotateX(-Math.PI / 2);
     const arrowMat = new THREE.MeshBasicMaterial({
-        color: 0xef4444, // Red North arrow
+        map: arrowTex,
         transparent: true,
-        opacity: 0.65,
         side: THREE.DoubleSide
     });
     const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    // Position slightly above the ring (0.05 height) to prevent Z-fighting artifacts
+    arrow.position.set(0, 0.05, -radius * 1.02);
     group.add(arrow);
 
     // 3. Central crosshairs (North-South, East-West lines)
@@ -3601,15 +3627,15 @@ function init3D() {
         }
 
         previousMousePosition3d = {
-            x: e.offsetX,
-            y: e.offsetY
+            x: e.clientX,
+            y: e.clientY
         };
     });
 
     renderer3d.domElement.addEventListener('mousemove', (e) => {
         const deltaMove = {
-            x: e.offsetX - previousMousePosition3d.x,
-            y: e.offsetY - previousMousePosition3d.y
+            x: e.clientX - previousMousePosition3d.x,
+            y: e.clientY - previousMousePosition3d.y
         };
 
         const rect = renderer3d.domElement.getBoundingClientRect();
@@ -3789,8 +3815,8 @@ function init3D() {
         }
 
         previousMousePosition3d = {
-            x: e.offsetX,
-            y: e.offsetY
+            x: e.clientX,
+            y: e.clientY
         };
 
         const tooltip = document.getElementById('3d-tooltip');
@@ -4161,38 +4187,6 @@ function disposeNode(node) {
 }
 
 function clearGarden3D() {
-    // Clear selection helpers
-    selectionHelpers3D.forEach(helper => {
-        scene3d.remove(helper);
-        if (helper.geometry) helper.geometry.dispose();
-        if (helper.material) helper.material.dispose();
-    });
-    selectionHelpers3D = [];
-
-    // Clear environment compass rose and solar path meshes
-    if (staticEnvCompass) {
-        if (visualsParentGroup) visualsParentGroup.remove(staticEnvCompass);
-        staticEnvCompass.traverse(node => {
-            if (node.geometry) node.geometry.dispose();
-            if (node.material) node.material.dispose();
-        });
-        staticEnvCompass = null;
-    }
-    if (sunArcLine) {
-        if (visualsParentGroup) visualsParentGroup.remove(sunArcLine);
-        if (sunArcLine.geometry) sunArcLine.geometry.dispose();
-        if (sunArcLine.material) sunArcLine.material.dispose();
-        sunArcLine = null;
-    }
-    if (sunSphereMesh) {
-        if (visualsParentGroup) visualsParentGroup.remove(sunSphereMesh);
-        if (sunSphereMesh.geometry) sunSphereMesh.geometry.dispose();
-        if (sunSphereMesh.material) sunSphereMesh.material.dispose();
-        sunSphereMesh = null;
-    }
-
-    if (!gardenGroup3d) return;
-    
     const disposedGeometries = new Set();
     const disposedMaterials = new Set();
     
@@ -4216,6 +4210,34 @@ function clearGarden3D() {
             });
         }
     };
+
+    // Clear selection helpers
+    selectionHelpers3D.forEach(helper => {
+        scene3d.remove(helper);
+        safeDisposeNode(helper);
+    });
+    selectionHelpers3D = [];
+
+    // Clear environment compass rose and solar path meshes
+    if (staticEnvCompass) {
+        if (visualsParentGroup) visualsParentGroup.remove(staticEnvCompass);
+        staticEnvCompass.traverse(node => {
+            safeDisposeNode(node);
+        });
+        staticEnvCompass = null;
+    }
+    if (sunArcLine) {
+        if (visualsParentGroup) visualsParentGroup.remove(sunArcLine);
+        safeDisposeNode(sunArcLine);
+        sunArcLine = null;
+    }
+    if (sunSphereMesh) {
+        if (visualsParentGroup) visualsParentGroup.remove(sunSphereMesh);
+        safeDisposeNode(sunSphereMesh);
+        sunSphereMesh = null;
+    }
+
+    if (!gardenGroup3d) return;
 
     gardenGroup3d.traverse(node => {
         if (node instanceof THREE.Mesh) {
@@ -4546,7 +4568,10 @@ function update3DLayout(width, height, gridArray) {
         visualsParentGroup.remove(staticEnvCompass);
         staticEnvCompass.traverse(node => {
             if (node.geometry) node.geometry.dispose();
-            if (node.material) node.material.dispose();
+            if (node.material) {
+                if (node.material.map) node.material.map.dispose();
+                node.material.dispose();
+            }
         });
     }
     const roseRadius = Math.max(cols, rows) * 0.7;
