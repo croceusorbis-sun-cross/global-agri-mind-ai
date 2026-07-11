@@ -2327,8 +2327,12 @@ function generateLayoutGridAsync(width, height, onProgress) {
 
                 for (let i = placedCount; i < batchLimit; i++) {
                     let candidates = [];
-                    for (let r = 0; r <= rows - placeDiameter; r++) {
-                        for (let c = 0; c <= cols - placeDiameter; c++) {
+                    const maxCandidates = 150;
+                    const stride = (rows * cols > 5000) ? Math.max(1, Math.floor(placeDiameter / 2)) : 1;
+
+                    outerScan:
+                    for (let r = 0; r <= rows - placeDiameter; r += stride) {
+                        for (let c = 0; c <= cols - placeDiameter; c += stride) {
                             let clear = true;
                             for (let dr = 0; dr < placeDiameter; dr++) {
                                 for (let dc = 0; dc < placeDiameter; dc++) {
@@ -2356,6 +2360,9 @@ function generateLayoutGridAsync(width, height, onProgress) {
                             }
                             if (clear) {
                                 candidates.push({ r, c, penalty: 0 });
+                                if (candidates.length >= maxCandidates) {
+                                    break outerScan;
+                                }
                             }
                         }
                     }
@@ -2402,13 +2409,22 @@ function generateLayoutGridAsync(width, height, onProgress) {
                         if (sameTypePlaced.length > 0) {
                             let tooClose = false;
                             let minDist = Infinity;
-                            sameTypePlaced.forEach(p => {
-                                const dist = Math.sqrt((candCenterR - p.r)**2 + (candCenterC - p.c)**2);
+                            
+                            // Check from the end of the array (most recently placed crops)
+                            const scanLimit = Math.min(sameTypePlaced.length, 100);
+                            for (let idx = sameTypePlaced.length - 1; idx >= sameTypePlaced.length - scanLimit; idx--) {
+                                const p = sameTypePlaced[idx];
+                                const dR = Math.abs(candCenterR - p.r);
+                                const dC = Math.abs(candCenterC - p.c);
+                                if (dR > 100 || dC > 100) continue;
+                                
+                                const dist = Math.sqrt(dR*dR + dC*dC);
                                 if (dist < minDist) minDist = dist;
                                 if (dist < placeDiameter + spacingBuffer - 0.01) {
                                     tooClose = true;
+                                    break;
                                 }
-                            });
+                            }
                             if (tooClose) {
                                 penalty += 50000;
                             } else {
@@ -2416,10 +2432,15 @@ function generateLayoutGridAsync(width, height, onProgress) {
                             }
                         } else if (tempPlacedCenters.length > 0) {
                             if (isDistributed) {
-                                tempPlacedCenters.forEach(placed => {
-                                    const dist = Math.sqrt((candCenterR - placed.r)**2 + (candCenterC - placed.c)**2);
+                                const scanLimit = Math.min(tempPlacedCenters.length, 100);
+                                for (let idx = tempPlacedCenters.length - 1; idx >= tempPlacedCenters.length - scanLimit; idx--) {
+                                    const placed = tempPlacedCenters[idx];
+                                    const dR = Math.abs(candCenterR - placed.r);
+                                    const dC = Math.abs(candCenterC - placed.c);
+                                    if (dR > 50 || dC > 50) continue;
+                                    const dist = Math.sqrt(dR*dR + dC*dC);
                                     penalty -= dist * 25;
-                                });
+                                }
                             } else {
                                 const lastPlaced = tempPlacedCenters[tempPlacedCenters.length - 1];
                                 const dist = Math.sqrt((candCenterR - lastPlaced.r)**2 + (candCenterC - lastPlaced.c)**2);
@@ -2430,31 +2451,33 @@ function generateLayoutGridAsync(width, height, onProgress) {
                         tempPlacedCenters.forEach(placed => {
                             const dRow = Math.abs(candCenterR - placed.r);
                             const dCol = Math.abs(candCenterC - placed.c);
-                            if (dRow > 15 || dCol > 15) {
-                                if (isDistributed && placed.plantName !== plant.name) {
-                                    const dist = Math.sqrt(dRow * dRow + dCol * dCol);
-                                    penalty -= dist * 25;
-                                }
+                            
+                            const maxDist = isDistributed ? 50 : 15;
+                            if (dRow > maxDist || dCol > maxDist) {
                                 return;
                             }
+                            
                             const dist = Math.sqrt(dRow * dRow + dCol * dCol);
                             if (isDistributed && placed.plantName !== plant.name) {
                                 penalty -= dist * 25;
                             }
-                            const key = [plant.name, placed.plantName].sort().join('::');
-                            const isAntagonist = antagonistsSet.has(placed.plantName);
-                            if (isAntagonist && !disabledAntagonists.has(key)) {
-                                penalty += 1500 / (dist + 0.1);
-                            }
-                            const isCompanion = companionsSet.has(placed.plantName);
-                            if (isCompanion) {
-                                penalty -= 300 / (dist + 0.1);
-                            }
-                            if (placed.plantName !== plant.name && !isCompanion && !isFoodForest) {
-                                const candBed = Math.floor(candCenterC / 6);
-                                const placedBed = Math.floor(placed.c / 6);
-                                if (candBed === placedBed) {
-                                    penalty += 800;
+                            
+                            if (dRow <= 15 && dCol <= 15) {
+                                const key = [plant.name, placed.plantName].sort().join('::');
+                                const isAntagonist = antagonistsSet.has(placed.plantName);
+                                if (isAntagonist && !disabledAntagonists.has(key)) {
+                                    penalty += 1500 / (dist + 0.1);
+                                }
+                                const isCompanion = companionsSet.has(placed.plantName);
+                                if (isCompanion) {
+                                    penalty -= 300 / (dist + 0.1);
+                                }
+                                if (placed.plantName !== plant.name && !isCompanion && !isFoodForest) {
+                                    const candBed = Math.floor(candCenterC / 6);
+                                    const placedBed = Math.floor(placed.c / 6);
+                                    if (candBed === placedBed) {
+                                        penalty += 800;
+                                    }
                                 }
                             }
                         });
@@ -2664,255 +2687,280 @@ function renderLayoutGrid(width, height) {
 
     // 5. Build grid elements list to render asynchronously in chunks
     const cellsQueue = [];
+    const isMiyawaki = document.getElementById('chk-method-miyawaki')?.checked || false;
+    const isSyntropic = document.getElementById('chk-method-syntropic')?.checked || false;
+
+    // A. Render grouped walkways as single long strips to dramatically save DOM nodes
+    if (!isMiyawaki) {
+        if (isSyntropic) {
+            for (let r = 0; r < rows; r++) {
+                if (r % 4 === 1 || r % 4 === 3) {
+                    const pathEl = document.createElement('div');
+                    pathEl.className = 'grid-cell path';
+                    pathEl.style.gridRow = `${r + 1} / span 1`;
+                    pathEl.style.gridColumn = `1 / span ${cols}`;
+                    pathEl.textContent = 'P';
+                    pathEl.title = "Walkway Path";
+                    pathEl.style.display = 'flex';
+                    pathEl.style.alignItems = 'center';
+                    pathEl.style.justifyContent = 'center';
+                    cellsQueue.push(pathEl);
+                }
+            }
+        } else {
+            for (let c = 0; c < cols; c++) {
+                if (c % 6 === 0) {
+                    const pathEl = document.createElement('div');
+                    pathEl.className = 'grid-cell path';
+                    pathEl.style.gridRow = `1 / span ${rows}`;
+                    pathEl.style.gridColumn = `${c + 1} / span 1`;
+                    pathEl.textContent = 'P';
+                    pathEl.title = "Walkway Path";
+                    pathEl.style.display = 'flex';
+                    pathEl.style.alignItems = 'center';
+                    pathEl.style.justifyContent = 'center';
+                    cellsQueue.push(pathEl);
+                }
+            }
+        }
+    }
+
+    // B. Render exactly one CSS Grid spanned element per crop footprint
+    const renderedInstances = new Set();
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const cellData = gridArray[r][c];
+            if (!cellData || cellData.type !== 'crop') continue;
+            if (renderedInstances.has(cellData.instanceId)) continue;
+            renderedInstances.add(cellData.instanceId);
+
             const cell = document.createElement('div');
-            cell.className = 'grid-cell';
+            cell.className = 'grid-cell crop';
+            cell.dataset.instanceId = cellData.instanceId;
+            cell.dataset.plantId = cellData.plant.id;
+            cell.dataset.plantName = cellData.plant.name;
 
-            if (cellData === null) {
-                cell.classList.add('empty');
-            } else if (cellData.type === 'path') {
-                cell.classList.add('path');
-                cell.textContent = 'P';
-                cell.title = "Walkway Path";
-            } else if (cellData.type === 'crop') {
-                cell.classList.add('crop');
-                cell.dataset.instanceId = cellData.instanceId;
-                cell.dataset.plantId = cellData.plant.id;
-                cell.dataset.plantName = cellData.plant.name;
+            // Size the element to occupy the crop's complete footprint via CSS Grid Spans
+            cell.style.gridRow = `${cellData.startR + 1} / span ${cellData.diameter}`;
+            cell.style.gridColumn = `${cellData.startC + 1} / span ${cellData.diameter}`;
 
-                const isTropical = isTropicalPotted(cellData.plant, currentZoneNum);
-                if (isTropical) {
-                    cell.classList.add('potted-tropical-cell');
-                }
+            const isTropical = isTropicalPotted(cellData.plant, currentZoneNum);
+            if (isTropical) {
+                cell.classList.add('potted-tropical-cell');
+            }
 
-                // Highlight plant if it belongs to the highlighted category
-                if (highlightedPlantName === cellData.plant.name) {
-                    cell.classList.add('gold-highlight-2d');
-                    cell.style.outline = '3px solid #eab308';
-                    cell.style.outlineOffset = '-3px';
-                    cell.style.boxShadow = '0 0 12px rgba(234, 179, 8, 0.8)';
-                    cell.style.zIndex = '5';
-                }
+            // Highlight plant if it belongs to the highlighted category
+            if (highlightedPlantName === cellData.plant.name) {
+                cell.classList.add('gold-highlight-2d');
+                cell.style.outline = '3px solid #eab308';
+                cell.style.outlineOffset = '-3px';
+                cell.style.boxShadow = '0 0 12px rgba(234, 179, 8, 0.8)';
+                cell.style.zIndex = '5';
+            }
 
-                // Highlight footprint if the crop instance is in the active selection
-                const isSelected = selectedPlantGroups.some(g => g && g.userData && g.userData.instanceId === cellData.instanceId);
-                if (isSelected) {
-                    cell.classList.add('selected-footprint');
-                }
+            // Highlight footprint if the crop instance is in the active selection
+            const isSelected = selectedPlantGroups.some(g => g && g.userData && g.userData.instanceId === cellData.instanceId);
+            if (isSelected) {
+                cell.classList.add('selected-footprint');
+            }
 
-                if (isEditModeActive) {
-                    cell.style.cursor = 'grab';
-                    cell.draggable = false;
-                    cell.addEventListener('mousedown', (e) => {
-                        if (e.button !== 0) return;
-                        e.stopPropagation();
+            if (isEditModeActive) {
+                cell.style.cursor = 'grab';
+                cell.draggable = false;
+                cell.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
 
-                        let hitGroup = gardenGroup3d?.children.find(child => child.name === "cropInstance" && child.userData.instanceId === cellData.instanceId);
+                    let hitGroup = gardenGroup3d?.children.find(child => child.name === "cropInstance" && child.userData.instanceId === cellData.instanceId);
 
-                        if (!hitGroup) {
-                            hitGroup = {
-                                position: new THREE.Vector3(
-                                    cellData.startC - cols/2 + cellData.diameter/2,
-                                    0,
-                                    cellData.startR - rows/2 + cellData.diameter/2
-                                ),
-                                userData: {
-                                    name: cellData.plant.name,
-                                    instanceId: cellData.instanceId,
-                                    spread: cellData.diameter,
-                                    drag2DStartR: cellData.startR,
-                                    drag2DStartC: cellData.startC,
-                                    originalGridR: cellData.startR,
-                                    originalGridC: cellData.startC,
-                                    plant: cellData.plant
-                                }
-                            };
-                        }
+                    if (!hitGroup) {
+                        hitGroup = {
+                            position: new THREE.Vector3(
+                                cellData.startC - cols/2 + cellData.diameter/2,
+                                0,
+                                cellData.startR - rows/2 + cellData.diameter/2
+                            ),
+                            userData: {
+                                name: cellData.plant.name,
+                                instanceId: cellData.instanceId,
+                                spread: cellData.diameter,
+                                drag2DStartR: cellData.startR,
+                                drag2DStartC: cellData.startC,
+                                originalGridR: cellData.startR,
+                                originalGridC: cellData.startC,
+                                plant: cellData.plant
+                            }
+                        };
+                    }
 
-                        if (hitGroup) {
-                            if (e.shiftKey && selectionAnchorGroup && selectionAnchorGroup !== hitGroup) {
-                                const r1 = Math.round(selectionAnchorGroup.position.z + rows/2 - selectionAnchorGroup.userData.spread/2);
-                                const c1 = Math.round(selectionAnchorGroup.position.x + cols/2 - selectionAnchorGroup.userData.spread/2);
-                                const r2 = Math.round(hitGroup.position.z + rows/2 - hitGroup.userData.spread/2);
-                                const c2 = Math.round(hitGroup.position.x + cols/2 - hitGroup.userData.spread/2);
+                    if (hitGroup) {
+                        if (e.shiftKey && selectionAnchorGroup && selectionAnchorGroup !== hitGroup) {
+                            const r1 = Math.round(selectionAnchorGroup.position.z + rows/2 - selectionAnchorGroup.userData.spread/2);
+                            const c1 = Math.round(selectionAnchorGroup.position.x + cols/2 - selectionAnchorGroup.userData.spread/2);
+                            const r2 = Math.round(hitGroup.position.z + rows/2 - hitGroup.userData.spread/2);
+                            const c2 = Math.round(hitGroup.position.x + cols/2 - hitGroup.userData.spread/2);
 
-                                const minR = Math.min(r1, r2);
-                                const maxR = Math.max(r1, r2);
-                                const minC = Math.min(c1, c2);
-                                const maxC = Math.max(c1, c2);
+                            const minR = Math.min(r1, r2);
+                            const maxR = Math.max(r1, r2);
+                            const minC = Math.min(c1, c2);
+                            const maxC = Math.max(c1, c2);
 
-                                selectedPlantGroups = [];
-                                const seenInstances = new Set();
-                                for (let r = minR; r <= maxR; r++) {
-                                    for (let c = minC; c <= maxC; c++) {
-                                        const cell = currentGridArray[r]?.[c];
-                                        if (cell && cell.type === 'crop' && !seenInstances.has(cell.instanceId)) {
-                                            seenInstances.add(cell.instanceId);
-                                            
-                                            let meshGroup = gardenGroup3d?.children.find(child => child.name === "cropInstance" && child.userData.instanceId === cell.instanceId);
-                                            if (!meshGroup) {
-                                                meshGroup = {
-                                                    position: new THREE.Vector3(
-                                                        cell.startC - cols/2 + cell.diameter/2,
-                                                        0,
-                                                        cell.startR - rows/2 + cell.diameter/2
-                                                    ),
-                                                    userData: {
-                                                        name: cell.plant.name,
-                                                        instanceId: cell.instanceId,
-                                                        spread: cell.diameter,
-                                                        drag2DStartR: cell.startR,
-                                                        drag2DStartC: cell.startC,
-                                                        originalGridR: cell.startR,
-                                                        originalGridC: cell.startC,
-                                                        plant: cell.plant
-                                                    }
-                                                };
-                                            }
-                                            selectedPlantGroups.push(meshGroup);
+                            selectedPlantGroups = [];
+                            const seenInstances = new Set();
+                            for (let gr = minR; gr <= maxR; gr++) {
+                                for (let gc = minC; gc <= maxC; gc++) {
+                                    const cellD = currentGridArray[gr]?.[gc];
+                                    if (cellD && cellD.type === 'crop' && !seenInstances.has(cellD.instanceId)) {
+                                        seenInstances.add(cellD.instanceId);
+                                        
+                                        let meshGroup = gardenGroup3d?.children.find(child => child.name === "cropInstance" && child.userData.instanceId === cellD.instanceId);
+                                        if (!meshGroup) {
+                                            meshGroup = {
+                                                position: new THREE.Vector3(
+                                                    cellD.startC - cols/2 + cellD.diameter/2,
+                                                    0,
+                                                    cellD.startR - rows/2 + cellD.diameter/2
+                                                ),
+                                                userData: {
+                                                    name: cellD.plant.name,
+                                                    instanceId: cellD.instanceId,
+                                                    spread: cellD.diameter,
+                                                    drag2DStartR: cellD.startR,
+                                                    drag2DStartC: cellD.startC,
+                                                    originalGridR: cellD.startR,
+                                                    originalGridC: cellD.startC,
+                                                    plant: cellD.plant
+                                                }
+                                            };
                                         }
+                                        selectedPlantGroups.push(meshGroup);
                                     }
                                 }
-                            } else if (e.ctrlKey) {
-                                const isAlreadySelected = selectedPlantGroups.some(item => item.userData.instanceId === hitGroup.userData.instanceId);
-                                if (isAlreadySelected) {
-                                    selectedPlantGroups = selectedPlantGroups.filter(item => item.userData.instanceId !== hitGroup.userData.instanceId);
-                                } else {
-                                    selectedPlantGroups.push(hitGroup);
-                                }
-                                selectionAnchorGroup = hitGroup;
-                            } else {
-                                const isAlreadySelected = selectedPlantGroups.some(item => item.userData.instanceId === hitGroup.userData.instanceId);
-                                if (!isAlreadySelected) {
-                                    selectedPlantGroups = [hitGroup];
-                                }
-                                selectionAnchorGroup = hitGroup;
                             }
-
-                            // Update selection highlights in place
-                            document.querySelectorAll('.grid-cell.crop').forEach(el => {
-                                const instId = el.dataset.instanceId;
-                                const isSel = selectedPlantGroups.some(g => g.userData.instanceId === instId);
-                                el.classList.toggle('selected-footprint', isSel);
-                            });
+                        } else if (e.ctrlKey) {
+                            const isAlreadySelected = selectedPlantGroups.some(item => item.userData.instanceId === hitGroup.userData.instanceId);
+                            if (isAlreadySelected) {
+                                selectedPlantGroups = selectedPlantGroups.filter(item => item.userData.instanceId !== hitGroup.userData.instanceId);
+                            } else {
+                                selectedPlantGroups.push(hitGroup);
+                            }
+                            selectionAnchorGroup = hitGroup;
+                        } else {
+                            const isAlreadySelected = selectedPlantGroups.some(item => item.userData.instanceId === hitGroup.userData.instanceId);
+                            if (!isAlreadySelected) {
+                                selectedPlantGroups = [hitGroup];
+                            }
+                            selectionAnchorGroup = hitGroup;
                         }
 
-                        isDragging2D = true;
-                        dragged2DInstanceId = cellData.instanceId;
-                        dragged2DCrop = cellData.plant;
-                        dragged2DStartR = cellData.startR;
-                        dragged2DStartC = cellData.startC;
-                        dragged2DDiam = cellData.diameter;
-
-                        const gridRect = gardenGrid.getBoundingClientRect();
-                        const cellWidth = gridRect.width / cols;
-                        const cellHeight = gridRect.height / rows;
-
-                        const clickX = e.clientX - gridRect.left;
-                        const clickY = e.clientY - gridRect.top;
-                        const clickC = Math.floor(clickX / cellWidth);
-                        const clickR = Math.floor(clickY / cellHeight);
-
-                        dragged2DOffsetC = clickC - cellData.startC;
-                        dragged2DOffsetR = clickR - cellData.startR;
-
-                        selectedPlantGroups.forEach(g => {
-                            const gr = g.userData.originalGridR;
-                            const gc = g.userData.originalGridC;
-                            g.userData.drag2DStartR = gr;
-                            g.userData.drag2DStartC = gc;
+                        // Update selection highlights in place
+                        document.querySelectorAll('.grid-cell.crop').forEach(el => {
+                            const instId = el.dataset.instanceId;
+                            const isSel = selectedPlantGroups.some(g => g.userData.instanceId === instId);
+                            el.classList.toggle('selected-footprint', isSel);
                         });
-
-                        selectedPlantGroups.forEach(g => {
-                            document.querySelectorAll(`[data-instance-id="${g.userData.instanceId}"]`).forEach(el => {
-                                el.style.opacity = '0.5';
-                                el.style.border = '2px dashed #f59e0b';
-                            });
-                        });
-                    });
-                }
-
-                // Apply organic raised-bed borders to outline the plant's footprint space
-                const dr = r - cellData.startR;
-                const dc = c - cellData.startC;
-                if (dr === 0) cell.classList.add('bed-border-top');
-                if (dr === cellData.diameter - 1) cell.classList.add('bed-border-bottom');
-                if (dc === 0) cell.classList.add('bed-border-left');
-                if (dc === cellData.diameter - 1) cell.classList.add('bed-border-right');
-
-                // Add exactly one top-down leaf graphic SVG spanning the full growth footprint
-                if (cellData.isTopLeft || cellData.diameter === 1) {
-                    const svgWrapper = document.createElement('div');
-                    svgWrapper.className = 'plant-svg-wrapper';
-                    svgWrapper.style.position = 'absolute';
-                    svgWrapper.style.top = '0';
-                    svgWrapper.style.left = '0';
-                    svgWrapper.style.width = `calc(${cellData.diameter}00% + ${(cellData.diameter - 1) * 1}px)`;
-                    svgWrapper.style.height = `calc(${cellData.diameter}00% + ${(cellData.diameter - 1) * 1}px)`;
-                    svgWrapper.style.zIndex = '1';
-                    svgWrapper.style.pointerEvents = 'none';
-                    svgWrapper.innerHTML = getPlantSVG(cellData.plant);
-                    cell.appendChild(svgWrapper);
-                }
-
-                // Footprint highlights on hover
-                cell.addEventListener('mouseenter', () => {
-                    document.querySelectorAll(`[data-instance-id="${cellData.instanceId}"]`).forEach(el => {
-                        el.classList.add('hovered-footprint');
-                    });
-                });
-                cell.addEventListener('mouseleave', () => {
-                    document.querySelectorAll(`[data-instance-id="${cellData.instanceId}"]`).forEach(el => {
-                        el.classList.remove('hovered-footprint');
-                    });
-                });
-
-                // Render plant initials badge only in the center of the block
-                if (cellData.isCenter || cellData.diameter === 1) {
-                    const colors = getPlantColor(cellData.plant.id);
-                    const initials = cellData.plant.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
-                    const initialsBadge = document.createElement('div');
-                    initialsBadge.className = 'crop-initials-pill';
-                    initialsBadge.style.color = colors.text;
-                    initialsBadge.style.borderColor = colors.border;
-                    initialsBadge.textContent = initials;
-                    cell.appendChild(initialsBadge);
-
-                    const isTropical = isTropicalPotted(cellData.plant, currentZoneNum);
-                    if (isTropical) {
-                        cell.title = `${cellData.plant.name} (Potted Tropical - Spread: ${cellData.diameter} ft)`;
-                    } else {
-                        cell.title = `${cellData.plant.name} (Spread: ${cellData.diameter} ft)`;
                     }
-                }
 
-                if (cellData.understory) {
-                    const underBadge = document.createElement('div');
-                    underBadge.className = 'understory-badge';
-                    underBadge.style.position = 'absolute';
-                    underBadge.style.bottom = '2px';
-                    underBadge.style.right = '2px';
-                    underBadge.style.width = '14px';
-                    underBadge.style.height = '14px';
-                    underBadge.style.zIndex = '3';
-                    underBadge.style.borderRadius = '50%';
-                    underBadge.style.background = 'rgba(16, 185, 129, 0.95)';
-                    underBadge.style.border = '1px solid #fff';
-                    underBadge.style.display = 'flex';
-                    underBadge.style.alignItems = 'center';
-                    underBadge.style.justifyContent = 'center';
-                    underBadge.style.fontSize = '7px';
-                    underBadge.style.fontWeight = '800';
-                    underBadge.style.color = '#fff';
-                    
-                    const uInitials = cellData.understory.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
-                    underBadge.textContent = uInitials;
-                    underBadge.title = `Understory layer: ${cellData.understory.name}`;
-                    cell.appendChild(underBadge);
-                }
+                    isDragging2D = true;
+                    dragged2DInstanceId = cellData.instanceId;
+                    dragged2DCrop = cellData.plant;
+                    dragged2DStartR = cellData.startR;
+                    dragged2DStartC = cellData.startC;
+                    dragged2DDiam = cellData.diameter;
+
+                    const gridRect = gardenGrid.getBoundingClientRect();
+                    const cellWidth = gridRect.width / cols;
+                    const cellHeight = gridRect.height / rows;
+
+                    const clickX = e.clientX - gridRect.left;
+                    const clickY = e.clientY - gridRect.top;
+                    const clickC = Math.floor(clickX / cellWidth);
+                    const clickR = Math.floor(clickY / cellHeight);
+
+                    dragged2DOffsetC = clickC - cellData.startC;
+                    dragged2DOffsetR = clickR - cellData.startR;
+
+                    selectedPlantGroups.forEach(g => {
+                        const gr = g.userData.originalGridR;
+                        const gc = g.userData.originalGridC;
+                        g.userData.drag2DStartR = gr;
+                        g.userData.drag2DStartC = gc;
+                    });
+
+                    selectedPlantGroups.forEach(g => {
+                        document.querySelectorAll(`[data-instance-id="${g.userData.instanceId}"]`).forEach(el => {
+                            el.style.opacity = '0.5';
+                            el.style.border = '2px dashed #f59e0b';
+                        });
+                    });
+                });
             }
+
+            // Apply organic raised-bed borders around the footprint bounding box
+            cell.classList.add('bed-border-top', 'bed-border-bottom', 'bed-border-left', 'bed-border-right');
+
+            // Add exactly one top-down leaf graphic SVG spanning the full growth footprint
+            const svgWrapper = document.createElement('div');
+            svgWrapper.className = 'plant-svg-wrapper';
+            svgWrapper.style.position = 'absolute';
+            svgWrapper.style.top = '0';
+            svgWrapper.style.left = '0';
+            svgWrapper.style.width = '100%';
+            svgWrapper.style.height = '100%';
+            svgWrapper.style.zIndex = '1';
+            svgWrapper.style.pointerEvents = 'none';
+            svgWrapper.innerHTML = getPlantSVG(cellData.plant);
+            cell.appendChild(svgWrapper);
+
+            // Footprint highlights on hover
+            cell.addEventListener('mouseenter', () => {
+                cell.classList.add('hovered-footprint');
+            });
+            cell.addEventListener('mouseleave', () => {
+                cell.classList.remove('hovered-footprint');
+            });
+
+            // Render plant initials badge in the center
+            const colors = getPlantColor(cellData.plant.id);
+            const initials = cellData.plant.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+            const initialsBadge = document.createElement('div');
+            initialsBadge.className = 'crop-initials-pill';
+            initialsBadge.style.color = colors.text;
+            initialsBadge.style.borderColor = colors.border;
+            initialsBadge.textContent = initials;
+            cell.appendChild(initialsBadge);
+
+            if (isTropical) {
+                cell.title = `${cellData.plant.name} (Potted Tropical - Spread: ${cellData.diameter} ft)`;
+            } else {
+                cell.title = `${cellData.plant.name} (Spread: ${cellData.diameter} ft)`;
+            }
+
+            if (cellData.understory) {
+                const underBadge = document.createElement('div');
+                underBadge.className = 'understory-badge';
+                underBadge.style.position = 'absolute';
+                underBadge.style.bottom = '2px';
+                underBadge.style.right = '2px';
+                underBadge.style.width = '14px';
+                underBadge.style.height = '14px';
+                underBadge.style.zIndex = '3';
+                underBadge.style.borderRadius = '50%';
+                underBadge.style.background = 'rgba(16, 185, 129, 0.95)';
+                underBadge.style.border = '1px solid #fff';
+                underBadge.style.display = 'flex';
+                underBadge.style.alignItems = 'center';
+                underBadge.style.justifyContent = 'center';
+                underBadge.style.fontSize = '7px';
+                underBadge.style.fontWeight = '800';
+                underBadge.style.color = '#fff';
+                
+                const uInitials = cellData.understory.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                underBadge.textContent = uInitials;
+                underBadge.title = `Understory layer: ${cellData.understory.name}`;
+                cell.appendChild(underBadge);
+            }
+
             cellsQueue.push(cell);
         }
     }
@@ -3251,6 +3299,7 @@ let shadowStretchVal = 1.0;
 let shadowContrastVal = 0.8;
 let sunSpeedVal = 1.0;
 const plantTextureCache = new Map();
+const plantModelCache = new Map();
 let raycaster3d, mouse3d;
 let lastHoveredGroup = null;
 let isDragging3d = false;
@@ -4136,16 +4185,52 @@ function clearGarden3D() {
     }
 
     if (!gardenGroup3d) return;
+    
+    const disposedGeometries = new Set();
+    const disposedMaterials = new Set();
+    
+    const safeDisposeNode = (node) => {
+        const geom = node.geometry;
+        const mat = node.material;
+        
+        if (geom && !disposedGeometries.has(geom)) {
+            geom.dispose();
+            disposedGeometries.add(geom);
+        }
+        
+        if (mat) {
+            const matArr = Array.isArray(mat) ? mat : [mat];
+            matArr.forEach(m => {
+                if (m && !disposedMaterials.has(m)) {
+                    if (m.map) m.map.dispose();
+                    m.dispose();
+                    disposedMaterials.add(m);
+                }
+            });
+        }
+    };
+
     gardenGroup3d.traverse(node => {
         if (node instanceof THREE.Mesh) {
-            disposeNode(node);
+            safeDisposeNode(node);
         }
     });
+
     // Dispose textures to free GPU memory
     plantTextureCache.forEach(texture => {
         texture.dispose();
     });
     plantTextureCache.clear();
+
+    // Dispose cached 3D models to free GPU memory
+    plantModelCache.forEach(group => {
+        group.traverse(node => {
+            if (node instanceof THREE.Mesh) {
+                safeDisposeNode(node);
+            }
+        });
+    });
+    plantModelCache.clear();
     
     while (gardenGroup3d.children.length > 0) {
         gardenGroup3d.remove(gardenGroup3d.children[0]);
@@ -4245,6 +4330,17 @@ function createPlantTextureCanvas(plantName, emoji, colors) {
 }
 
 function buildSimplifiedConeModel(plant, diameter) {
+    // Resolve current USDA zone number dynamically
+    const zoneElement = document.getElementById('hdr-zone');
+    const zoneText = zoneElement ? zoneElement.textContent : "Zone 6a";
+    const zoneMatch = zoneText.match(/\d+/);
+    const currentZoneNum = zoneMatch ? parseInt(zoneMatch[0]) : 6;
+
+    const modelCacheKey = `${plant.id}_${diameter}_${currentZoneNum}`;
+    if (plantModelCache.has(modelCacheKey)) {
+        return plantModelCache.get(modelCacheKey).clone();
+    }
+
     const coneGroup = new THREE.Group();
     const colors = getPlantColor(plant.id);
     
@@ -4261,12 +4357,6 @@ function buildSimplifiedConeModel(plant, diameter) {
         border: borderCol,
         text: colors.text
     };
-
-    // Calculate current USDA zone number dynamically
-    const zoneElement = document.getElementById('hdr-zone');
-    const zoneText = zoneElement ? zoneElement.textContent : "Zone 6a";
-    const zoneMatch = zoneText.match(/\d+/);
-    const currentZoneNum = zoneMatch ? parseInt(zoneMatch[0]) : 6;
 
     const isTropical = isTropicalPotted(plant, currentZoneNum);
     let plantBaseY = 0;
@@ -4380,7 +4470,8 @@ function buildSimplifiedConeModel(plant, diameter) {
         coneGroup.add(coneMesh);
     }
 
-    return coneGroup;
+    plantModelCache.set(modelCacheKey, coneGroup);
+    return coneGroup.clone();
 }
 
 function update3DLayout(width, height, gridArray) {
@@ -4393,6 +4484,9 @@ function update3DLayout(width, height, gridArray) {
 
     const cols = gridArray[0].length;
     const rows = gridArray.length;
+
+    const sharedPathGeo = new THREE.BoxGeometry(0.98, 0.12, 0.98);
+    const sharedPathMat = new THREE.MeshStandardMaterial({ color: 0x5a4537, roughness: 0.95 });
 
     // Adjust camera height and target dynamically to frame the entire garden space
     if (camera3d && shouldResetCamera3D) {
@@ -4530,9 +4624,7 @@ function update3DLayout(width, height, gridArray) {
             const item = renderQueue[i];
 
             if (item.type === 'path') {
-                const pathGeo = new THREE.BoxGeometry(0.98, 0.12, 0.98);
-                const pathMat = new THREE.MeshStandardMaterial({ color: 0x5a4537, roughness: 0.95 });
-                const pathTile = new THREE.Mesh(pathGeo, pathMat);
+                const pathTile = new THREE.Mesh(sharedPathGeo, sharedPathMat);
                 pathTile.position.set(item.x, 0.06, item.z);
                 pathTile.castShadow = true;
                 pathTile.receiveShadow = true;
