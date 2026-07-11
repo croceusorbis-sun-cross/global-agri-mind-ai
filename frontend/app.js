@@ -2,6 +2,8 @@
 let allPlants = [];
 let selectedCrops = [];
 let lastDesignResponse = null;
+let layoutAlerts = { analysis: {}, cellAlerts: {} };
+let placedCenters = [];
 let disabledAntagonists = new Set();
 let highlightedPlantName = null;
 let active3DHighlightHelpers = [];
@@ -2104,6 +2106,7 @@ async function submitDesign(shouldScroll = false) {
     };
 
     try {
+        // Phase 1: Retrieve companion and antagonist database relationships (without layout_analysis)
         const response = await fetch('/api/v1/design', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2174,10 +2177,27 @@ async function submitDesign(shouldScroll = false) {
             placedCenters = result.placedCenters;
             currentWidth = payload.garden_width;
             currentHeight = payload.garden_height;
+
+            // Phase 2: Compute Layout Spacing and Nutrition Alerts
+            layoutAlerts = calculateLayoutAlerts();
             
             isManualEdit = true;
             renderLayoutGrid(payload.garden_width, payload.garden_height);
             isManualEdit = false;
+
+            // Phase 3: Fetch tailored layout AI advice
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tailoring advice...';
+            payload.layout_analysis = layoutAlerts.analysis;
+
+            const adviceResponse = await fetch('/api/v1/design', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (adviceResponse.ok) {
+                lastDesignResponse = await adviceResponse.json();
+            }
             
             renderRecommendations();
             renderCalendarTimeline();
@@ -2534,7 +2554,11 @@ function generateLayoutGridAsync(width, height, onProgress) {
                     const centerPt = {
                         r: best.r + placeDiameter / 2,
                         c: best.c + placeDiameter / 2,
-                        plantName: plant.name
+                        plantName: plant.name,
+                        plant: plant,
+                        instanceId: instanceId,
+                        startR: best.r,
+                        startC: best.c
                     };
 
                     for (let dr = 0; dr < placeDiameter; dr++) {
@@ -2649,6 +2673,128 @@ async function recalculateLayout() {
     trigger3DRender();
 }
 
+function calculateLayoutAlerts() {
+    if (!currentGridArray || !placedCenters) return { analysis: {}, cellAlerts: {} };
+
+    const zipInput = document.getElementById('input-zip')?.value || "48195";
+    const zoneText = document.getElementById('hdr-zone')?.textContent || "Zone 6a";
+    const zoneMatch = zoneText.match(/\d+/);
+    const currentZoneNum = zoneMatch ? parseInt(zoneMatch[0]) : 6;
+
+    const soil = document.getElementById('select-soil').value;
+    const sun = document.getElementById('select-sun').value;
+
+    const cols = currentGridArray[0].length;
+    const rows = currentGridArray.length;
+
+    const realizedCompanions = new Set();
+    const realizedAntagonists = new Set();
+    const soilMismatches = new Set();
+    const sunMismatches = new Set();
+    const shadingWarnings = new Set();
+    const zoneMismatches = new Set();
+    let tropicalPottedCount = 0;
+
+    const cellAlerts = {};
+
+    const companionsSet = new Set();
+    const antagonistsSet = new Set();
+    if (lastDesignResponse) {
+        if (lastDesignResponse.companions) {
+            lastDesignResponse.companions.forEach(c => {
+                companionsSet.add(`${c.plant}::${c.companion}`);
+                companionsSet.add(`${c.companion}::${c.plant}`);
+            });
+        }
+        if (lastDesignResponse.antagonists) {
+            lastDesignResponse.antagonists.forEach(a => {
+                antagonistsSet.add(`${a.plant}::${a.antagonist}`);
+                antagonistsSet.add(`${a.antagonist}::${a.plant}`);
+            });
+        }
+    }
+
+    for (let i = 0; i < placedCenters.length; i++) {
+        const p1 = placedCenters[i];
+        if (!p1.plant) continue;
+        const instId = p1.instanceId || `${p1.plantName}_${p1.r}_${p1.c}`;
+        if (!cellAlerts[instId]) cellAlerts[instId] = [];
+
+        // Check sun mismatch
+        const p1PrefSun = p1.plant.sun_requirements || "Full Sun";
+        if (sun === "Shade" && p1PrefSun.toLowerCase().includes("full sun")) {
+            cellAlerts[instId].push("Sun mismatch: Prefers Full Sun but garden is Shade");
+            sunMismatches.add(p1.plantName);
+        } else if (sun === "Full Sun" && p1PrefSun.toLowerCase() === "shade") {
+            cellAlerts[instId].push("Sun mismatch: Prefers Shade but garden is Full Sun");
+            sunMismatches.add(p1.plantName);
+        }
+
+        // Check soil mismatch
+        const p1PrefSoil = p1.plant.soil_preference || "Loam";
+        if (soil === "Clay" && p1PrefSoil.toLowerCase().includes("sand")) {
+            cellAlerts[instId].push("Soil mismatch: Prefers Sandy soil but garden is Clay");
+            soilMismatches.add(p1.plantName);
+        } else if (soil === "Sand" && p1PrefSoil.toLowerCase().includes("clay")) {
+            cellAlerts[instId].push("Soil mismatch: Prefers Clay soil but garden is Sand");
+            soilMismatches.add(p1.plantName);
+        }
+
+        // Check USDA zone mismatch
+        const p1Zones = p1.plant.usda_zones ? p1.plant.usda_zones.split(',').map(z => parseInt(z.trim())) : [];
+        if (p1Zones.length > 0 && !p1Zones.includes(currentZoneNum)) {
+            cellAlerts[instId].push(`Climate mismatch: Not winter-hardy in USDA Zone ${currentZoneNum}`);
+            zoneMismatches.add(p1.plantName);
+        }
+
+        // Check shading warning (tall crops placed on the Southern half)
+        const matureHeight = p1.plant.mature_height ? parseFloat(p1.plant.mature_height) : 3;
+        const isTall = (matureHeight >= 12 || p1.plant.type === "Fruit Tree");
+        if (isTall && p1.r > rows / 2) {
+            cellAlerts[instId].push("Shading warning: Tall variety on South side casts shadows on smaller plants");
+            shadingWarnings.add(p1.plantName);
+        }
+
+        // Check tropical potted count
+        if (isTropicalPotted(p1.plant, currentZoneNum)) {
+            tropicalPottedCount++;
+            cellAlerts[instId].push("Tropical potted: Must be overwintered indoors in cold seasons");
+        }
+
+        // Check neighbor proximity
+        for (let j = 0; j < placedCenters.length; j++) {
+            if (i === j) continue;
+            const p2 = placedCenters[j];
+            const dist = Math.sqrt((p1.r - p2.r) ** 2 + (p1.c - p2.c) ** 2);
+
+            const isComp = companionsSet.has(`${p1.plantName}::${p2.plantName}`);
+            const isAntag = antagonistsSet.has(`${p1.plantName}::${p2.plantName}`);
+
+            if (isComp && dist <= 12) {
+                realizedCompanions.add([p1.plantName, p2.plantName].sort().join(' + '));
+            }
+            if (isAntag && dist <= 10) {
+                realizedAntagonists.add([p1.plantName, p2.plantName].sort().join(' + '));
+                cellAlerts[instId].push(`Antagonist warning: Too close to ${p2.plantName}`);
+            }
+        }
+    }
+
+    return {
+        analysis: {
+            total_placed_instances: placedCenters.length,
+            utilized_companions: Array.from(realizedCompanions),
+            realized_antagonists: Array.from(realizedAntagonists),
+            soil_mismatches: Array.from(soilMismatches),
+            sun_mismatches: Array.from(sunMismatches),
+            shading_warnings: Array.from(shadingWarnings),
+            tropical_potted_count: tropicalPottedCount,
+            zone_mismatches: Array.from(zoneMismatches)
+        },
+        cellAlerts: cellAlerts
+    };
+}
+
 function renderLayoutGrid(width, height) {
     const isDistributed = document.getElementById('chk-distribute-layout')?.checked || false;
     gardenGrid.innerHTML = '';
@@ -2682,7 +2828,7 @@ function renderLayoutGrid(width, height) {
 
     // Initialize 2D grid array representing layout space
     let gridArray;
-    let placedCenters = [];
+    placedCenters = [];
 
     if (currentGridArray) {
         gridArray = currentGridArray;
@@ -2695,7 +2841,15 @@ function renderLayoutGrid(width, height) {
                     placedSet.add(cell.instanceId);
                     const centerR = cell.startR + cell.diameter / 2;
                     const centerC = cell.startC + cell.diameter / 2;
-                    placedCenters.push({ r: centerR, c: centerC, plantName: cell.plant.name });
+                    placedCenters.push({
+                        r: centerR,
+                        c: centerC,
+                        plantName: cell.plant.name,
+                        plant: cell.plant,
+                        instanceId: cell.instanceId,
+                        startR: cell.startR,
+                        startC: cell.startC
+                    });
                 }
             }
         }
@@ -2706,6 +2860,9 @@ function renderLayoutGrid(width, height) {
     currentGridArray = gridArray;
     currentWidth = width;
     currentHeight = height;
+
+    // Recalculate layout alerts dynamically to support manual edits
+    layoutAlerts = calculateLayoutAlerts();
 
     // Defer 2D DOM grid rendering if the user is currently looking at the 3D View.
     // This allows instant garden generation without creating thousands of DOM elements.
@@ -2960,6 +3117,18 @@ function renderLayoutGrid(width, height) {
             initialsBadge.style.borderColor = colors.border;
             initialsBadge.textContent = initials;
             cell.appendChild(initialsBadge);
+
+            // Render plant alert badge (warnings/upgrade counters) in top-right
+            if (typeof layoutAlerts !== 'undefined' && layoutAlerts.cellAlerts) {
+                const alerts = layoutAlerts.cellAlerts[cellData.instanceId] || [];
+                if (alerts.length > 0) {
+                    const alertBadge = document.createElement('div');
+                    alertBadge.className = 'crop-alert-badge';
+                    alertBadge.textContent = alerts.length;
+                    alertBadge.title = `Alerts:\n- ${alerts.join('\n- ')}`;
+                    cell.appendChild(alertBadge);
+                }
+            }
 
             if (isTropical) {
                 cell.title = `${cellData.plant.name} (Potted Tropical - Spread: ${cellData.diameter} ft)`;

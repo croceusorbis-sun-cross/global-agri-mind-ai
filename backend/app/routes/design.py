@@ -75,7 +75,8 @@ def create_garden_design(request: DesignRequest):
         sun=request.sun,
         plants=request.plants,
         companions=companions_dict,
-        antagonists=antagonists_dict
+        antagonists=antagonists_dict,
+        layout_analysis=request.layout_analysis
     )
 
     return DesignResponse(

@@ -5,9 +5,24 @@ import urllib.error
 
 class AIService:
     @staticmethod
-    def generate_garden_advice(zip_code: str, soil: str, sun: str, plants: list, companions: list, antagonists: list) -> str:
+    def generate_garden_advice(zip_code: str, soil: str, sun: str, plants: list, companions: list, antagonists: list, layout_analysis: dict = None) -> str:
         """Queries the Gemini API to analyze the garden plot configuration, falling back to a rules-engine."""
         api_key = os.environ.get("GEMINI_API_KEY")
+        
+        # Build layout statistics description if present
+        stats_desc = ""
+        if layout_analysis:
+            stats_desc = f"""
+Actual Layout Metrics & Statistics from Spaced Grid:
+- Placed Instances Count: {layout_analysis.get('total_placed_instances', 0)}
+- Realized Companion Pairings: {', '.join(layout_analysis.get('utilized_companions', [])) or 'None'}
+- Realized Antagonist warnings (placed too close): {', '.join(layout_analysis.get('realized_antagonists', [])) or 'None'}
+- Soil requirement mismatches: {', '.join(layout_analysis.get('soil_mismatches', [])) or 'None'}
+- Sun requirement mismatches: {', '.join(layout_analysis.get('sun_mismatches', [])) or 'None'}
+- Tall crops casting shade on South side: {', '.join(layout_analysis.get('shading_warnings', [])) or 'None'}
+- Tropical potted plants needing overwintering: {layout_analysis.get('tropical_potted_count', 0)}
+- USDA zone mismatches: {', '.join(layout_analysis.get('zone_mismatches', [])) or 'None'}
+"""
         
         prompt = f"""
 You are an expert horticulturist and ecological designer. Analyze the following garden design request:
@@ -15,18 +30,26 @@ You are an expert horticulturist and ecological designer. Analyze the following 
 - Soil: {soil}
 - Sun: {sun}
 - Selected crops: {', '.join(plants)}
-- Identified companions: {', '.join([f"{c['plant']} + {c['companion']}" for c in companions]) if companions else 'None'}
-- Identified antagonists/warnings: {', '.join([f"{a['plant']} + {a['antagonist']}" for a in antagonists]) if antagonists else 'None'}
+- Identified companions in selection: {', '.join([f"{c['plant']} + {c['companion']}" for c in companions]) if companions else 'None'}
+- Identified antagonists/warnings in selection: {', '.join([f"{a['plant']} + {a['antagonist']}" for a in antagonists]) if antagonists else 'None'}
+{stats_desc}
 
-Provide a structured markdown response with these sections:
+Provide a structured, highly comprehensive growing system guide tailored exactly to the actual layout metrics. Address the specific crops placed. Use exactly these markdown headers:
+
 ### Garden Layout Strategy
-Write 2-3 sentences suggesting how to arrange these plants based on sun/soil and companion guidelines.
+Detail how the layout successfully resolved or failed companion spacing (e.g. mention realized companion pairs vs antagonist warnings). Specify if any tall crops are casting shade from the south side and how to optimize it.
 
-### Rotational Calendar
-Write 2 sentences recommending what cover crop or crop group to plant in this soil next year to renew nutrients.
+### Soil & Nutrition Plan
+Analyze the soil type ({soil}) and specify nutrition upgrades. Detail fertilizing advice for the placed annuals and soil amendments/compost for perennials.
 
-### Professional Tips
-Provide 2 bullet points of ecological or watering advice tailored for this soil type ({soil}) and sun profile ({sun}).
+### Crop Care & Pruning Calendar
+Provide specific timelines and pruning guidelines for the placed trees/perennials vs annual crops.
+
+### Pest & Disease Control
+Recommend organic pest control methods and companion-repellent strategies tailored to these specific crops.
+
+### Rotational & Future Planning
+Provide cover crop and rotation recommendations for next season based on the placed heavy feeders.
 """
         
         if api_key:
@@ -53,41 +76,95 @@ Provide 2 bullet points of ecological or watering advice tailored for this soil 
                     return text
             except Exception as e:
                 print(f"Gemini API query failed (falling back to rules-engine): {e}")
-
+ 
         # Fallback to programmatic high-quality rules engine
-        return AIService._get_fallback_advice(zip_code, soil, sun, plants, companions, antagonists)
-
+        return AIService._get_fallback_advice(zip_code, soil, sun, plants, companions, antagonists, layout_analysis)
+ 
     @staticmethod
-    def _get_fallback_advice(zip_code: str, soil: str, sun: str, plants: list, companions: list, antagonists: list) -> str:
+    def _get_fallback_advice(zip_code: str, soil: str, sun: str, plants: list, companions: list, antagonists: list, layout_analysis: dict = None) -> str:
         """Programmatically constructs high-fidelity ecological advice if no API key is available."""
-        layout_advice = f"Arrange your garden with tall crops (like Corn or Sunflowers) on the north side to avoid casting shade on smaller greens. In your {soil.lower()} soil with {sun.lower()} exposure, ensure adequate organic matter to regulate soil moisture."
-        if companions:
-            layout_advice += f" Plant companion pairings like {companions[0]['plant']} and {companions[0]['companion']} close together to naturally enhance pest resistance and nutrient utilization."
+        # Parse layout analysis
+        realized_comp = []
+        realized_antag = []
+        soil_mismatch = []
+        sun_mismatch = []
+        shading = []
+        potted_count = 0
+        zone_mismatch = []
         
-        rotational_advice = f"Next season, follow your heavy-feeding crops with legumes (like beans or peas) or sow a cover crop such as crimson clover to naturally restore nitrogen levels in the {soil.lower()} soil."
-        
-        tips = []
-        if "clay" in soil.lower():
-            tips.append("Clay soil holds moisture but drains slowly. Water deeply and less frequently, and consider raised beds to prevent root rot.")
-        elif "sand" in soil.lower():
-            tips.append("Sandy soil drains very quickly. Incorporate rich compost to increase moisture retention and water regularly.")
+        if layout_analysis:
+            realized_comp = layout_analysis.get('utilized_companions', [])
+            realized_antag = layout_analysis.get('realized_antagonists', [])
+            soil_mismatch = layout_analysis.get('soil_mismatches', [])
+            sun_mismatch = layout_analysis.get('sun_mismatches', [])
+            shading = layout_analysis.get('shading_warnings', [])
+            potted_count = layout_analysis.get('tropical_potted_count', 0)
+            zone_mismatch = layout_analysis.get('zone_mismatches', [])
+
+        # 1. Layout Strategy
+        layout_advice = ""
+        if realized_comp:
+            layout_advice += f"Your layout successfully utilized companion relationships like {', '.join(realized_comp)} to boost ecological synergies. "
         else:
-            tips.append("Loam soil is ideal for vegetable roots. Mulch around the base of nightshades to maintain steady moisture.")
+            layout_advice += "We recommend adding companion pairings (such as Basil next to Tomatoes) to naturally enhance pest resistance. "
             
-        if "full" in sun.lower():
-            tips.append("Full sun drives fast growth but high evaporation. Water in the early morning to minimize evaporation loss.")
+        if realized_antag:
+            layout_advice += f"WARNING: Active antagonist warnings detected: {', '.join(realized_antag)} are placed too close to each other. Consider adjusting their layout to reduce growth suppression. "
         else:
-            tips.append("Partial shade is excellent for cool-season crops (greens, lettuce) to prevent premature bolting.")
+            layout_advice += "Your layout successfully avoided any close antagonist proximity issues! "
+            
+        if shading:
+            layout_advice += f"WARNING: Tall crops like {', '.join(shading)} are placed on the Southern half of your garden, which will cast shade on smaller crops. Consider relocating them to the far North. "
+        else:
+            layout_advice += "All tall crop varieties are positioned on the northern boundaries, maximizing sunlight exposure for lower-tier crops."
+
+        # 2. Soil & Nutrition
+        soil_low = soil.lower()
+        nutrition_advice = f"Your {soil_low} soil needs structural attention. "
+        if "clay" in soil_low:
+            nutrition_advice += "Clay retains water and nutrients well but compacts easily. Incorporate gypsum, coarse compost, and organic mulch to open up drainage. "
+        elif "sand" in soil_low:
+            nutrition_advice += "Sandy soil drains rapidly, leaching nutrients. Apply heavy compost, leaf mold, and kelp meal to increase organic binding capacity. "
+        else:
+            nutrition_advice += "Loamy soil is ideal but requires regular maintenance. Apply a 2-inch layer of rich vermicompost before planting. "
+            
+        if soil_mismatch:
+            nutrition_advice += f"Crops like {', '.join(soil_mismatch)} prefer different soil textures. Supplement their specific planting zones with custom compost blends."
+
+        # 3. Crop Care & Pruning
+        pruning_advice = "Pruning timelines vary by crop cycle. "
+        annual_names = [p for p in plants if "tree" not in p.lower() and "berry" not in p.lower()]
+        tree_names = [p for p in plants if "tree" in p.lower() or "chestnut" in p.lower() or "walnut" in p.lower()]
+        if tree_names:
+            pruning_advice += f"For perennial trees ({', '.join(tree_names)}), prune during late dormancy (winter) to stimulate spring growth. "
+        if annual_names:
+            pruning_advice += f"For annual crops like {', '.join(annual_names[:3])}, pinch early blossoms to encourage root establishment, and prune lower suckers on nightshades."
+
+        # 4. Pest & Disease
+        pest_advice = "Ecological pest prevention is highly recommended. "
+        if plants:
+            pest_advice += f"For {', '.join(plants[:3])}, spray neem oil or horticultural soap at the first sign of aphids. Use companion barrier plantings to mask scents. "
+        if potted_count > 0:
+            pest_advice += "Keep potted tropicals clear of indoor pests (spider mites) by washing leaves prior to overwintering."
+
+        # 5. Rotational & Future Planning
+        rotation_advice = f"To maintain your {soil_low} soil, plan a crop rotation. "
+        rotation_advice += "Follow heavy nitrogen consumers (like corn, brassicas, or nightshades) with nitrogen-fixing cover crops such as Crimson Clover or Hairy Vetch next spring to naturally revitalize the soil."
 
         return f"""### Garden Layout Strategy
 {layout_advice}
 
-### Rotational Calendar
-{rotational_advice}
+### Soil & Nutrition Plan
+{nutrition_advice}
 
-### Professional Tips
-* {tips[0]}
-* {tips[1]}
+### Crop Care & Pruning Calendar
+{pruning_advice}
+
+### Pest & Disease Control
+{pest_advice}
+
+### Rotational & Future Planning
+{rotation_advice}
 """
 
     @staticmethod

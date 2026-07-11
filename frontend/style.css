@@ -1346,6 +1346,32 @@ input:focus, select:focus {
     box-shadow: var(--shadow-sm);
 }
 
+/* Crop warning and nutrition alert badge */
+.crop-alert-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #ef4444; /* tailwind red-500 */
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 800;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ffffff;
+    z-index: 5;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35);
+    cursor: help;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.crop-alert-badge:hover {
+    background-color: #dc2626; /* red-600 */
+    transform: scale(1.1);
+}
+
 /* CAD Blueprint Viewport & Rulers styling */
 .cad-viewport {
     display: grid;

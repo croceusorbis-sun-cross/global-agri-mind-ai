@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Dict, Any, Optional
 
 class CompanionMatch(BaseModel):
     plant: str
@@ -18,6 +18,7 @@ class DesignRequest(BaseModel):
     soil: str = Field(..., description="Soil type (e.g., Clay, Sand, Loam, Unknown)")
     sun: str = Field(..., description="Sun exposure (e.g., Full, Partial, Shade)")
     plants: List[str] = Field(..., description="List of desired plants/crops")
+    layout_analysis: Optional[Dict[str, Any]] = Field(None, description="Detailed layout analysis stats from the client")
 
 class DesignResponse(BaseModel):
     success: bool
