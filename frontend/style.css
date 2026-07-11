@@ -595,16 +595,10 @@ input:focus, select:focus {
 
 #selected-crops {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
     width: 100%;
     margin-top: 12px;
-}
-
-@media (max-width: 768px) {
-    #selected-crops {
-        grid-template-columns: 1fr;
-    }
 }
 
 .tag {
@@ -1215,9 +1209,9 @@ input:focus, select:focus {
     background-color: rgba(255, 255, 255, 0.015);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: 12px !important;
-    margin-bottom: 8px;
-    gap: 10px;
+    padding: 10px !important;
+    margin-bottom: 0px;
+    gap: 6px;
     transition: all 0.2s ease;
     width: 100%;
     box-sizing: border-box;
