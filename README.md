@@ -4,7 +4,7 @@
 **[https://global-agri-mind-ai.onrender.com/](https://global-agri-mind-ai.onrender.com/)**
 
 ### 💻 GitHub Repository
-**[https://github.com/croceusorbis-sun-cross/global-agri-mind-ai](https://github.com/croceusorbis-sun-cross/global-agri-mind-ai)**
+**[https://github.com/GAMA-Global-Agri-Mind-AI/GAMA-Global-Agri-Mind-AI](https://github.com/GAMA-Global-Agri-Mind-AI/GAMA-Global-Agri-Mind-AI)**
 
 An ecosystem design engine and intelligent garden planner. This system is designed to build sustainable, optimized planting layouts, companion recommendations, and planting timelines based on local climate data (such as USDA hardiness zones, soil types, and dimensions).
 
@@ -39,7 +39,7 @@ An ecosystem design engine and intelligent garden planner. This system is design
 
 ## 💖 Funding & Open Collective
 
- We are preparing to launch our Open Collective page to support sustainable development and open-source contributions. 
+We are preparing to launch our Open Collective page to support sustainable development and open-source contributions. 
 
 * **Back Us**: Support the project on Open Collective (coming soon) to help sustain GAMA's development and cloud services!
-* **Contribute**: Check out the official repository at [github.com/croceusorbis-sun-cross/global-agri-mind-ai](https://github.com/croceusorbis-sun-cross/global-agri-mind-ai) to get involved.
+* **Contribute**: Check out the official repository at [github.com/GAMA-Global-Agri-Mind-AI/GAMA-Global-Agri-Mind-AI](https://github.com/GAMA-Global-Agri-Mind-AI/GAMA-Global-Agri-Mind-AI) to get involved.
