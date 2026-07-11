@@ -59,7 +59,6 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column;
     padding: 20px 14px;
     flex-shrink: 0;
-    overflow-y: auto;
 }
 
 .brand {
@@ -201,8 +200,6 @@ h1, h2, h3, h4, h5, h6 {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow-y: auto;
 }
 
 /* Header Styling */
@@ -1779,9 +1776,7 @@ input:focus, select:focus {
 
     /* Main content view adjustments */
     .main-content {
-        height: calc(100vh - 60px); /* Leave room for bottom nav */
-        padding-bottom: 20px;
-        overflow-y: auto;
+        padding-bottom: 80px; /* Leave room for bottom nav bar */
         width: 100% !important;
     }
 
