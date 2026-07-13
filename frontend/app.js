@@ -2286,6 +2286,19 @@ function generateLayoutGridAsync(width, height, onProgress) {
         const rows = Math.round(height);
         
         let gridArray = Array(rows).fill(null).map(() => Array(cols).fill(null));
+        
+        // Apply satellite traced irregular polygon mask (mark excluded cells as blocked)
+        if (activePolygons && activePolygons.length > 0 && gardenCenterLatLng) {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const isBlocked = checkCellBlocked(r, c, cols, rows, gardenCenterLatLng.lat, gardenCenterLatLng.lng, activePolygons);
+                    if (isBlocked) {
+                        gridArray[r][c] = { type: 'blocked' };
+                    }
+                }
+            }
+        }
+        
         let placedCenters = [];
 
         const isMiyawaki = document.getElementById('chk-method-miyawaki')?.checked || false;
@@ -2855,6 +2868,16 @@ function renderLayoutGrid(width, height) {
         }
     } else {
         gridArray = Array(rows).fill(null).map(() => Array(cols).fill(null));
+        if (activePolygons && activePolygons.length > 0 && gardenCenterLatLng) {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const isBlocked = checkCellBlocked(r, c, cols, rows, gardenCenterLatLng.lat, gardenCenterLatLng.lng, activePolygons);
+                    if (isBlocked) {
+                        gridArray[r][c] = { type: 'blocked' };
+                    }
+                }
+            }
+        }
     }
 
     currentGridArray = gridArray;
@@ -2909,6 +2932,20 @@ function renderLayoutGrid(width, height) {
                     pathEl.style.justifyContent = 'center';
                     cellsQueue.push(pathEl);
                 }
+            }
+        }
+    }
+    
+    // A.2. Render individual blocked/exclusion cells from irregular polygon trace
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (gridArray[r][c] && gridArray[r][c].type === 'blocked') {
+                const blockedEl = document.createElement('div');
+                blockedEl.className = 'grid-cell blocked-cell';
+                blockedEl.style.gridRow = `${r + 1} / span 1`;
+                blockedEl.style.gridColumn = `${c + 1} / span 1`;
+                blockedEl.title = "Exclusion Zone (Non-growing Area)";
+                cellsQueue.push(blockedEl);
             }
         }
     }
@@ -6667,7 +6704,7 @@ function initWildForaging() {
     if (zipInput) {
         zipInput.addEventListener('input', renderForage);
     }
-
+ 
     // Run forage render when we switch tabs
     const tabNavs = document.querySelectorAll('.nav-item');
     tabNavs.forEach(btn => {
@@ -6677,10 +6714,374 @@ function initWildForaging() {
             }
         });
     });
-
+ 
     // Also run initially
     setTimeout(renderForage, 200);
 }
+
+// ==========================================
+// GEOLOCATION & SATELLITE POLYGON TRACING SYSTEM
+// ==========================================
+
+let mapInstance = null;
+let drawnPolygonsGroup = null;
+let activePolygons = []; // Array of arrays of {lat, lng} points representing growth areas
+let gardenCenterLatLng = null; // {lat, lng} of the traced garden origin
+
+// Bounding box area calculation helpers
+function checkCellBlocked(r, c, totalCols, totalRows, centerLat, centerLng, polygons) {
+    // Determine the local coordinate of the grid cell center in feet relative to the garden center
+    // North is along -Z (negative rows), East is +X (positive columns)
+    const feetPerDegreeLat = 364000;
+    const feetPerDegreeLng = 364000 * Math.cos(centerLat * Math.PI / 180);
+    
+    // Grid coordinate (0, 0) is top-left. Relative offset from grid center:
+    const offsetC = c - totalCols / 2 + 0.5; // East-West offset in feet
+    const offsetR = totalRows / 2 - r - 0.5; // North-South offset in feet (inverting row count for North positive)
+    
+    const cellLat = centerLat + (offsetR / feetPerDegreeLat);
+    const cellLng = centerLng + (offsetC / feetPerDegreeLng);
+    
+    // Check if cellLat/cellLng lies inside ANY of the active polygons. If inside, it is NOT blocked.
+    // If outside all drawn polygons, it is blocked (exclusion zone).
+    let insideAny = false;
+    for (const poly of polygons) {
+        if (isPointInPolygon({ lat: cellLat, lng: cellLng }, poly)) {
+            insideAny = true;
+            break;
+        }
+    }
+    return !insideAny;
+}
+
+function isPointInPolygon(point, polygon) {
+    let x = point.lat, y = point.lng;
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        let xi = polygon[i].lat, yi = polygon[i].lng;
+        let xj = polygon[j].lat, yj = polygon[j].lng;
+        let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// Initialize Leaflet satellite modal logic on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Settings Provider Controls Toggle
+    const providerSelect = document.getElementById('settings-map-provider');
+    const mapboxGroup = document.querySelector('.id-settings-mapbox-token-group');
+    const googleGroup = document.querySelector('.id-settings-google-key-group');
+    const saveMapBtn = document.getElementById('btn-save-map-settings');
+    const statusSpan = document.getElementById('map-settings-status');
+
+    function toggleTokenInputs() {
+        const val = providerSelect.value;
+        mapboxGroup.style.display = val === 'mapbox' ? 'block' : 'none';
+        googleGroup.style.display = val === 'google' ? 'block' : 'none';
+    }
+    
+    if (providerSelect) {
+        providerSelect.addEventListener('change', toggleTokenInputs);
+        
+        // Fetch current map configurations from backend on startup
+        fetch('/api/v1/settings')
+            .then(res => res.json())
+            .then(data => {
+                providerSelect.value = data.map_provider || 'osm';
+                toggleTokenInputs();
+                if (data.has_mapbox_token) {
+                    document.getElementById('settings-mapbox-token').value = "********";
+                }
+                if (data.has_google_key) {
+                    document.getElementById('settings-google-key').value = "********";
+                }
+            })
+            .catch(err => console.error("Error loading map settings:", err));
+    }
+
+    if (saveMapBtn) {
+        saveMapBtn.addEventListener('click', async () => {
+            statusSpan.textContent = "Saving...";
+            const payload = {
+                map_provider: providerSelect.value,
+                mapbox_token: document.getElementById('settings-mapbox-token').value,
+                google_key: document.getElementById('settings-google-key').value
+            };
+            
+            try {
+                const res = await fetch('/api/v1/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    statusSpan.textContent = "Saved successfully!";
+                    statusSpan.style.color = "var(--accent-emerald)";
+                } else {
+                    statusSpan.textContent = data.detail || "Failed to save.";
+                    statusSpan.style.color = "#ef4444";
+                }
+            } catch (err) {
+                statusSpan.textContent = "Connection error.";
+                statusSpan.style.color = "#ef4444";
+            }
+            setTimeout(() => { statusSpan.textContent = ""; }, 3000);
+        });
+    }
+
+    // 2. Interactive Map Tracing Dialog Setup
+    const openModalBtn = document.getElementById('btn-open-satellite-modal');
+    const closeModalBtn = document.getElementById('btn-close-satellite-modal');
+    const modalBackdrop = document.getElementById('satellite-modal-backdrop');
+    const tracingModal = document.getElementById('satellite-tracing-modal');
+    
+    const searchInput = document.getElementById('map-address-input');
+    const searchBtn = document.getElementById('btn-map-search');
+    const suggestionsBox = document.getElementById('map-suggestions');
+    const clearBtn = document.getElementById('btn-map-clear');
+    const confirmBtn = document.getElementById('btn-map-confirm');
+    
+    const areaDisplay = document.getElementById('map-area-display');
+    const bboxDisplay = document.getElementById('map-bbox-display');
+
+    function openSatelliteModal() {
+        modalBackdrop.style.display = 'block';
+        tracingModal.style.display = 'flex';
+        
+        // Initial setup of Leaflet Map once container is visible
+        setTimeout(() => {
+            if (!mapInstance) {
+                // Initialize Leaflet Map instance
+                mapInstance = L.map('leaflet-map-container', {
+                    zoomControl: true,
+                    pmIgnore: false
+                }).setView([42.2808, -83.7430], 18); // Default centered on Ann Arbor
+
+                // Fetch dynamic satellite tile proxy from GAMA backend
+                L.tileLayer('/api/v1/map/tile/{z}/{x}/{y}', {
+                    maxZoom: 20,
+                    attribution: '© Esri / Mapbox'
+                }).addTo(mapInstance);
+
+                // Initialize Geoman Drawing toolbar
+                mapInstance.pm.addControls({
+                    position: 'topleft',
+                    drawMarker: false,
+                    drawCircleMarker: false,
+                    drawPolyline: false,
+                    drawRectangle: true,
+                    drawPolygon: true,
+                    drawCircle: false,
+                    editMode: true,
+                    dragMode: true,
+                    cutPolygon: false,
+                    removalMode: true
+                });
+
+                drawnPolygonsGroup = L.featureGroup().addTo(mapInstance);
+
+                // Listen to draw create events
+                mapInstance.on('pm:create', (e) => {
+                    const layer = e.layer;
+                    drawnPolygonsGroup.addLayer(layer);
+                    updateTracingMetrics();
+                    
+                    // Listen to updates on edits or drag
+                    layer.on('pm:edit', updateTracingMetrics);
+                    layer.on('pm:dragend', updateTracingMetrics);
+                });
+
+                mapInstance.on('pm:remove', () => {
+                    updateTracingMetrics();
+                });
+            } else {
+                mapInstance.invalidateSize();
+            }
+        }, 300);
+    }
+
+    function closeSatelliteModal() {
+        modalBackdrop.style.display = 'none';
+        tracingModal.style.display = 'none';
+    }
+
+    function updateTracingMetrics() {
+        activePolygons = [];
+        const layers = drawnPolygonsGroup.getLayers();
+        if (layers.length === 0) {
+            areaDisplay.textContent = "Active Planting Area: 0 sq ft";
+            bboxDisplay.textContent = "Bounding Box: 0 x 0 ft";
+            return;
+        }
+
+        let totalSqFt = 0;
+        let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+
+        layers.forEach(layer => {
+            const latlngs = layer.getLatLngs()[0];
+            const polyPoints = latlngs.map(pt => {
+                minLat = Math.min(minLat, pt.lat);
+                maxLat = Math.max(maxLat, pt.lat);
+                minLng = Math.min(minLng, pt.lng);
+                maxLng = Math.max(maxLng, pt.lng);
+                return { lat: pt.lat, lng: pt.lng };
+            });
+            activePolygons.push(polyPoints);
+
+            // Compute polygon area using Spherical geometry approximation
+            const areaM2 = L.GeometryUtil.geodesicArea(latlngs);
+            totalSqFt += areaM2 * 10.7639; // sq meters to sq feet
+        });
+
+        // Set garden center at the centroid of bounding box coordinates
+        gardenCenterLatLng = {
+            lat: (minLat + maxLat) / 2,
+            lng: (minLng + maxLng) / 2
+        };
+
+        // Determine bounding box dimension spans in feet
+        const latFeet = (maxLat - minLat) * 364000;
+        const lngFeet = (maxLng - minLng) * 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180);
+
+        areaDisplay.textContent = `Active Planting Area: ${Math.round(totalSqFt)} sq ft`;
+        bboxDisplay.textContent = `Bounding Box: ${Math.round(lngFeet)} x ${Math.round(latFeet)} ft`;
+    }
+
+    // Geocoding Autocomplete Search Input listeners
+    let typingTimer;
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(typingTimer);
+            const val = searchInput.value.trim();
+            if (val.length < 3) {
+                suggestionsBox.classList.add('hidden');
+                return;
+            }
+            typingTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/v1/map/geocode?q=${encodeURIComponent(val)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        suggestionsBox.innerHTML = '';
+                        if (data.length === 0) {
+                            suggestionsBox.classList.add('hidden');
+                            return;
+                        }
+                        suggestionsBox.classList.remove('hidden');
+                        data.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            div.textContent = item.name;
+                            div.addEventListener('click', () => {
+                                searchInput.value = item.name;
+                                suggestionsBox.classList.add('hidden');
+                                if (mapInstance) {
+                                    mapInstance.setView([item.lat, item.lng], 19);
+                                }
+                            });
+                            suggestionsBox.appendChild(div);
+                        });
+                    }
+                } catch (err) {
+                    console.error("Geocoding lookup error:", err);
+                }
+            }, 300);
+        });
+
+        // Close suggestions on outside click
+        document.addEventListener('click', (e) => {
+            if (e.target !== searchInput && e.target !== suggestionsBox) {
+                suggestionsBox.classList.add('hidden');
+            }
+        });
+    }
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', async () => {
+            const val = searchInput.value.trim();
+            if (!val) return;
+            try {
+                const res = await fetch(`/api/v1/map/geocode?q=${encodeURIComponent(val)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        const item = data[0];
+                        searchInput.value = item.name;
+                        suggestionsBox.classList.add('hidden');
+                        if (mapInstance) {
+                            mapInstance.setView([item.lat, item.lng], 19);
+                        }
+                    } else {
+                        alert("Address not found. Please try a different search phrase.");
+                    }
+                }
+            } catch (err) {
+                alert("Failed to connect to geocoding services.");
+            }
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            if (drawnPolygonsGroup) {
+                drawnPolygonsGroup.clearLayers();
+                updateTracingMetrics();
+            }
+        });
+    }
+
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            if (activePolygons.length === 0 || !gardenCenterLatLng) {
+                alert("Please draw at least one growing layout polygon on the map before confirming.");
+                return;
+            }
+
+            // Extract enclosing bounding box dimension spans
+            let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+            drawnPolygonsGroup.getLayers().forEach(layer => {
+                layer.getLatLngs()[0].forEach(pt => {
+                    minLat = Math.min(minLat, pt.lat);
+                    maxLat = Math.max(maxLat, pt.lat);
+                    minLng = Math.min(minLng, pt.lng);
+                    maxLng = Math.max(maxLng, pt.lng);
+                });
+            });
+
+            const latFeet = Math.max(10, Math.round((maxLat - minLat) * 364000));
+            const lngFeet = Math.max(10, Math.round((maxLng - minLng) * 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180)));
+
+            // Update Garden length and width parameter fields to match bounding box bounding dimensions
+            const inputHeight = document.getElementById('input-height');
+            const inputWidth = document.getElementById('input-width');
+            
+            if (inputHeight && inputWidth) {
+                // If dimensions are in meters, translate bounds back to meters
+                if (settingsDimUnit === 'm') {
+                    inputHeight.value = Math.round(latFeet * 0.3048);
+                    inputWidth.value = Math.round(lngFeet * 0.3048);
+                } else {
+                    inputHeight.value = latFeet;
+                    inputWidth.value = lngFeet;
+                }
+            }
+
+            closeSatelliteModal();
+            
+            // Auto-trigger full layout redesign utilizing the updated mapped coordinates
+            submitDesign();
+        });
+    }
+
+    if (openModalBtn) {
+        openModalBtn.addEventListener('click', openSatelliteModal);
+    }
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeSatelliteModal);
+    }
+});
 
 
 

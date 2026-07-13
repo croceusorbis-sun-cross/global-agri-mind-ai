@@ -2394,6 +2394,84 @@ input:focus, select:focus {
     background-color: rgba(194, 65, 12, 0.15) !important;
 }
 
+/* Satellite Tracing & Leaflet Styles */
+#leaflet-map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 250px;
+    z-index: 10;
+}
+
+/* Adjust Leaflet Geoman panels to match GAMA dark-mode theme */
+.leaflet-pm-toolbar, .leaflet-bar, .leaflet-control-zoom {
+    border: 1px solid var(--border-color) !important;
+    background-color: #0c100f !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.leaflet-bar a, .leaflet-pm-actions-container .action {
+    background-color: #0c100f !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: background 0.15s, color 0.15s;
+}
+
+.leaflet-bar a:hover, .leaflet-pm-actions-container .action:hover {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: var(--accent-emerald) !important;
+}
+
+.leaflet-pm-actions-container {
+    background-color: #0c100f !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #0c100f !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color);
+}
+
+.suggestions-box {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #0c100f;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    z-index: 1100;
+    box-shadow: var(--shadow-lg);
+}
+
+.suggestions-box.hidden {
+    display: none;
+}
+
+.suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 11.5px;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    transition: background 0.15s, color 0.15s;
+}
+
+.suggestion-item:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--accent-emerald);
+}
+
+/* 2D Grid Disabled/Exclusion Cells representation */
+.grid-cell.blocked-cell {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.05) !important;
+    opacity: 0.25 !important;
+    cursor: not-allowed;
+}
+
 
 
 

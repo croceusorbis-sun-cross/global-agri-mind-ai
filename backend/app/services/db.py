@@ -28,6 +28,13 @@ def init_db_tables():
                 visit_count INTEGER DEFAULT 1
             );
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
         conn.commit()
 
         # Check if the plants table exists in the database

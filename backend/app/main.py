@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from app.routes import design, plants, diagnostics, analytics
+from app.routes import design, plants, diagnostics, analytics, map, settings
 
 load_dotenv()
 
@@ -31,6 +31,8 @@ app.include_router(design.router, prefix="/api/v1", tags=["design"])
 app.include_router(plants.router, prefix="/api/v1", tags=["plants"])
 app.include_router(diagnostics.router, prefix="/api/v1", tags=["diagnostics"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
+app.include_router(settings.router, prefix="/api/v1", tags=["settings"])
+app.include_router(map.router, prefix="/api/v1", tags=["map"])
 def get_git_info():
     try:
         import subprocess
