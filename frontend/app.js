@@ -6952,6 +6952,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Geocoding Autocomplete Search Input listeners
     let typingTimer;
     if (searchInput) {
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (searchBtn) searchBtn.click();
+            }
+        });
+
         searchInput.addEventListener('input', () => {
             clearTimeout(typingTimer);
             const val = searchInput.value.trim();
