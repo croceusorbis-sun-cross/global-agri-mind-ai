@@ -586,7 +586,7 @@ if (btnSunAnimate) {
                 camera3d.lookAt(target);
                 
                 if (visualsParentGroup) {
-                    visualsParentGroup.rotation.set(cameraOrbitAngleX, cameraOrbitAngleY, 0);
+                    visualsParentGroup.rotation.set(0, 0, 0);
                 }
                 update3DCompass();
             }
@@ -912,7 +912,7 @@ function drawSunPath(width, height) {
 
     // Arc from sunrise (t=0) to sunset (t=PI)
     for (let t = 0; t <= Math.PI + 0.01; t += 0.05) {
-        const x = -radius * Math.cos(t);
+        const x = radius * Math.cos(t);
         const y = radius * Math.sin(t) * Math.cos(latRad);
         const z = radius * Math.sin(t) * Math.sin(latRad); // Deflect towards South (+Z)
         arcPoints.push(new THREE.Vector3(x, y, z));
@@ -3962,9 +3962,16 @@ function init3D() {
                 cameraOrbitAngleX += deltaMove.y * 0.007;
                 cameraOrbitAngleX = Math.max(-Math.PI / 3, Math.min(Math.PI / 6, cameraOrbitAngleX));
                 
+                if (camera3d && cameraTarget3d) {
+                    const dist = camera3d.position.distanceTo(cameraTarget3d);
+                    const x = cameraTarget3d.x + dist * Math.sin(cameraOrbitAngleY) * Math.cos(cameraOrbitAngleX);
+                    const y = cameraTarget3d.y + dist * Math.sin(-cameraOrbitAngleX);
+                    const z = cameraTarget3d.z + dist * Math.cos(cameraOrbitAngleY) * Math.cos(cameraOrbitAngleX);
+                    camera3d.position.set(x, y, z);
+                    camera3d.lookAt(cameraTarget3d);
+                }
                 if (visualsParentGroup) {
-                    visualsParentGroup.rotation.y = cameraOrbitAngleY;
-                    visualsParentGroup.rotation.x = cameraOrbitAngleX;
+                    visualsParentGroup.rotation.set(0, 0, 0);
                 }
                 update3DCompass();
             } else if (dragButton3d === 2) {
@@ -4212,7 +4219,7 @@ function animate3D() {
         const radius = Math.max(cols, rows) * 1.5;
 
         // Calculate sun position along tilted celestial arc
-        const x = -radius * Math.cos(sunTime);
+        const x = radius * Math.cos(sunTime);
         const y = radius * Math.sin(sunTime) * Math.cos(latRad);
         const z = radius * Math.sin(sunTime) * Math.sin(latRad);
 
@@ -4689,18 +4696,22 @@ function update3DLayout(width, height, gridArray) {
     // Adjust camera height and target dynamically to frame the entire garden space
     if (camera3d && shouldResetCamera3D) {
         const maxDim = Math.max(cols, rows);
-        camera3d.position.set(0, maxDim * 1.2 + 8, maxDim * 1.4 + 12);
+        const initY = maxDim * 1.2 + 8;
+        const initZ = maxDim * 1.4 + 12;
+        camera3d.position.set(0, initY, initZ);
         if (cameraTarget3d) {
             cameraTarget3d.set(0, 0, 0);
         }
         camera3d.lookAt(cameraTarget3d || new THREE.Vector3(0, 0, 0));
         shouldResetCamera3D = false;
         
-        // Reset orbit angles, preserving current orientation angle
+        // Calculate initial orbit angles to match the camera position and prevent snapping on drag start
+        const dist = Math.sqrt(initY * initY + initZ * initZ);
         cameraOrbitAngleY = 0;
-        cameraOrbitAngleX = 0;
+        cameraOrbitAngleX = -Math.asin(initY / dist);
+        
         if (visualsParentGroup) {
-            visualsParentGroup.rotation.set(cameraOrbitAngleX, cameraOrbitAngleY, 0);
+            visualsParentGroup.rotation.set(0, 0, 0);
         }
         if (gardenGroup3d) {
             gardenGroup3d.rotation.set(0, -gardenOrientationAngle * Math.PI / 180, 0);
