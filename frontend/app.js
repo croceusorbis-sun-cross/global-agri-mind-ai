@@ -3958,8 +3958,8 @@ function init3D() {
         } else if (isDragging3d) {
             // View camera orbits and translation pans
             if (dragButton3d === 0) {
-                cameraOrbitAngleY += deltaMove.x * 0.007;
-                cameraOrbitAngleX += deltaMove.y * 0.007;
+                cameraOrbitAngleY -= deltaMove.x * 0.007;
+                cameraOrbitAngleX -= deltaMove.y * 0.007;
                 cameraOrbitAngleX = Math.max(-Math.PI / 3, Math.min(Math.PI / 6, cameraOrbitAngleX));
                 
                 if (camera3d && cameraTarget3d) {
