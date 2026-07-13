@@ -6930,9 +6930,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             activePolygons.push(polyPoints);
 
-            // Compute polygon area using Spherical geometry approximation
-            const areaM2 = L.GeometryUtil.geodesicArea(latlngs);
-            totalSqFt += areaM2 * 10.7639; // sq meters to sq feet
+            // Compute polygon area in square feet using Shoelace formula
+            let polyArea = 0;
+            const feetPerDegreeLat = 364000;
+            const feetPerDegreeLng = 364000 * Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+            for (let i = 0; i < latlngs.length; i++) {
+                const pt1 = latlngs[i];
+                const pt2 = latlngs[(i + 1) % latlngs.length];
+                const x1 = pt1.lng * feetPerDegreeLng;
+                const y1 = pt1.lat * feetPerDegreeLat;
+                const x2 = pt2.lng * feetPerDegreeLng;
+                const y2 = pt2.lat * feetPerDegreeLat;
+                polyArea += (x1 * y2) - (x2 * y1);
+            }
+            totalSqFt += Math.abs(polyArea / 2);
         });
 
         // Set garden center at the centroid of bounding box coordinates
