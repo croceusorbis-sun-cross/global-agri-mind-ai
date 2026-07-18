@@ -7,6 +7,7 @@ let placedCenters = [];
 let disabledAntagonists = new Set();
 let highlightedPlantName = null;
 let active3DHighlightHelpers = [];
+let mapAnnotations = [];
 
 // ZIP Code Lookup Mapping
 const zipCodeInfo = {
@@ -506,6 +507,101 @@ let is3DMode = true;
 let settingsDimUnit = localStorage.getItem('settingsDimUnit') || 'ft';
 let settingsWeightUnit = localStorage.getItem('settingsWeightUnit') || 'lbs';
 
+let isTraceModeActive = false;
+
+function setTraceMode(active) {
+    isTraceModeActive = active;
+    const traceBtn = document.getElementById('btn-toggle-trace');
+    const mainMapContainer = document.getElementById('main-map-container');
+    const layoutScrollPane = document.getElementById('layout-scroll-pane');
+    const viewportClearBtn = document.getElementById('btn-viewport-map-clear');
+    
+    if (active) {
+        if (traceBtn) traceBtn.classList.add('active');
+        if (btnView3D) btnView3D.classList.remove('active');
+        if (btnView2D) btnView2D.classList.remove('active');
+        const mapToolbar = document.getElementById('map-controls-toolbar');
+        if (mapToolbar) mapToolbar.style.display = 'flex';
+        
+        // Ensure we are in 2D view mode
+        switchViewMode(false);
+        if (btnView2D) btnView2D.classList.remove('active'); // Keep Trace as the sole active highlight
+        
+        // Bring map container to front
+        if (mainMapContainer) {
+            mainMapContainer.style.display = 'block';
+            mainMapContainer.style.zIndex = '990';
+            mainMapContainer.style.pointerEvents = 'auto';
+        }
+        
+        // Hide grid cells layout pane completely to avoid overlap confusion
+        if (layoutScrollPane) {
+            layoutScrollPane.style.display = 'none';
+        }
+        
+        // Show clear button
+        if (viewportClearBtn) viewportClearBtn.style.display = 'inline-flex';
+        
+        initViewportMap();
+        setTimeout(() => {
+            if (mapInstance) mapInstance.invalidateSize();
+        }, 100);
+    } else {
+        if (traceBtn) traceBtn.classList.remove('active');
+        const mapToolbar = document.getElementById('map-controls-toolbar');
+        if (mapToolbar) mapToolbar.style.display = 'none';
+        
+        // Hide map container completely
+        if (mainMapContainer) {
+            mainMapContainer.style.display = 'none';
+            mainMapContainer.style.zIndex = '1';
+            mainMapContainer.style.pointerEvents = 'none';
+        }
+        
+        // Restore grid cells layout pane
+        if (layoutScrollPane) {
+            layoutScrollPane.style.display = 'block';
+            layoutScrollPane.style.opacity = '1.0';
+            layoutScrollPane.style.pointerEvents = 'auto';
+        }
+        
+        // Hide clear button
+        if (viewportClearBtn) viewportClearBtn.style.display = 'none';
+        
+        updateViewportZones();
+        
+        // Sync bounds logic from old mode toggles
+        if (activePolygons && activePolygons.length > 0 && gardenCenterLatLng) {
+            let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+            drawnPolygonsGroup.getLayers().forEach(layer => {
+                if (layer instanceof L.Polygon) {
+                    layer.getLatLngs()[0].forEach(pt => {
+                        minLat = Math.min(minLat, pt.lat);
+                        maxLat = Math.max(maxLat, pt.lat);
+                        minLng = Math.min(minLng, pt.lng);
+                        maxLng = Math.max(maxLng, pt.lng);
+                    });
+                }
+            });
+
+            const latFeet = Math.max(10, Math.round((maxLat - minLat) * 364000));
+            const lngFeet = Math.max(10, Math.round((maxLng - minLng) * 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180)));
+
+            const inputHeight = document.getElementById('input-height');
+            const inputWidth = document.getElementById('input-width');
+            if (inputHeight && inputWidth) {
+                if (settingsDimUnit === 'm') {
+                    inputHeight.value = Math.round(latFeet * 0.3048);
+                    inputWidth.value = Math.round(lngFeet * 0.3048);
+                } else {
+                    inputHeight.value = latFeet;
+                    inputWidth.value = lngFeet;
+                }
+            }
+        }
+    }
+}
+
 function switchViewMode(mode3d) {
     is3DMode = mode3d;
     if (is3DMode) {
@@ -532,7 +628,7 @@ function switchViewMode(mode3d) {
             const editBtn = document.getElementById('btn-edit-mode');
             if (editBtn) {
                 editBtn.classList.remove('active');
-                editBtn.innerHTML = '<i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout';
+                editBtn.innerHTML = '<i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Plant Positions';
                 editBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
                 editBtn.style.color = '';
             }
@@ -546,10 +642,22 @@ function switchViewMode(mode3d) {
 }
 
 if (btnView3D) {
-    btnView3D.addEventListener('click', () => switchViewMode(true));
+    btnView3D.addEventListener('click', () => {
+        setTraceMode(false);
+        switchViewMode(true);
+    });
 }
 if (btnView2D) {
-    btnView2D.addEventListener('click', () => switchViewMode(false));
+    btnView2D.addEventListener('click', () => {
+        setTraceMode(false);
+        switchViewMode(false);
+    });
+}
+const btnToggleTrace = document.getElementById('btn-toggle-trace');
+if (btnToggleTrace) {
+    btnToggleTrace.addEventListener('click', () => {
+        setTraceMode(true);
+    });
 }
 
 // Sun Path Animation Toggle
@@ -1362,15 +1470,29 @@ function initMultiPresets() {
     selectBox.addEventListener('click', (e) => {
         e.stopPropagation();
         const isOpen = menu.style.display === 'block';
-        menu.style.display = isOpen ? 'none' : 'block';
-        // Close methodologies dropdown if open
-        const otherMenu = document.getElementById('methods-dropdown-menu');
-        if (otherMenu) otherMenu.style.display = 'none';
+        const parentStep = selectBox.closest('.flow-step');
+        
+        if (isOpen) {
+            menu.style.display = 'none';
+            if (parentStep) parentStep.classList.remove('dropdown-open');
+        } else {
+            menu.style.display = 'block';
+            if (parentStep) parentStep.classList.add('dropdown-open');
+            // Close methodologies dropdown if open
+            const otherMenu = document.getElementById('methods-dropdown-menu');
+            if (otherMenu) {
+                otherMenu.style.display = 'none';
+                const otherStep = otherMenu.closest('.flow-step');
+                if (otherStep) otherStep.classList.remove('dropdown-open');
+            }
+        }
     });
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#presets-dropdown-container')) {
             menu.style.display = 'none';
+            const parentStep = selectBox.closest('.flow-step');
+            if (parentStep) parentStep.classList.remove('dropdown-open');
         }
         if (popover && !popover.contains(e.target) && !e.target.closest('.custom-option-item')) {
             popover.style.display = 'none';
@@ -1645,7 +1767,7 @@ function applySelectedPresets(shouldSubmit = true) {
     const btnApply = document.getElementById('btn-apply-selected-presets');
     if (btnApply) {
         btnApply.addEventListener('click', () => {
-            applySelectedPresets();
+            applySelectedPresets(false);
         });
     }
 
@@ -1789,6 +1911,15 @@ function renderCropTags() {
             row.style.boxShadow = '0 0 10px rgba(234, 179, 8, 0.4)';
         }
 
+        let zoneOptionsHtml = '<option value="global">Entire Property (Global)</option>';
+        if (activePolygons && activePolygons.length > 0) {
+            activePolygons.forEach((poly, pIdx) => {
+                const zName = `Zone ${pIdx + 1}`;
+                const isSelected = crop.assignedZoneIdx === pIdx ? 'selected' : '';
+                zoneOptionsHtml += `<option value="${pIdx}" ${isSelected}>${zName}</option>`;
+            });
+        }
+
         row.innerHTML = `
             <div class="crop-header-row">
                 <button class="remove-crop-row-btn" data-idx="${index}"><i class="fa-solid fa-trash"></i></button>
@@ -1812,7 +1943,13 @@ function renderCropTags() {
                     <input type="number" class="yield-input" value="${Math.round(crop.yield)}" min="1" max="10000" data-idx="${index}" data-type="yield">
                 </div>
             </div>
-            <div class="crop-sub-desc">
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="color: var(--text-secondary); font-size: 10px; font-weight: 600;"><i class="fa-solid fa-map-location-dot"></i> Assigned Planting Zone</label>
+                <select class="crop-zone-select" data-idx="${index}" style="width: 100%; height: 28px; font-size: 11px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); padding: 0 4px;">
+                    ${zoneOptionsHtml}
+                </select>
+            </div>
+            <div class="crop-sub-desc" style="margin-top: 8px;">
                 <i class="fa-solid fa-seedling" style="color: var(--accent-emerald); font-size: 10px;"></i>
                 <span>${crop.type} | Spread: ${spreadText}</span>
             </div>
@@ -1823,6 +1960,14 @@ function renderCropTags() {
             e.stopPropagation();
             toggleCropHighlight(crop.name);
         });
+
+        const zoneSelect = row.querySelector('.crop-zone-select');
+        if (zoneSelect) {
+            zoneSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                crop.assignedZoneIdx = val === 'global' ? null : parseInt(val);
+            });
+        }
 
         // Botanical Detailed Tooltip Listeners
         const tooltip = document.getElementById('crop-info-tooltip');
@@ -2118,8 +2263,14 @@ async function submitDesign(shouldScroll = false) {
             
             // Update Headers & Sync Summary
             const info = zipCodeInfo[payload.zip] || { city: "Ann Arbor, MI", zone: "Zone 6a" };
-            document.getElementById('hdr-zip').textContent = `${payload.zip} (${info.city})`;
-            document.getElementById('hdr-zone').textContent = info.zone;
+            const hdrZip = document.getElementById('hdr-zip');
+            if (hdrZip) {
+                hdrZip.textContent = `${payload.zip} (${info.city})`;
+            }
+            const hdrZone = document.getElementById('hdr-zone');
+            if (hdrZone) {
+                hdrZone.textContent = info.zone;
+            }
             const userZoneElement = document.querySelector('.user-zone');
             if (userZoneElement) {
                 userZoneElement.textContent = info.zone;
@@ -2398,8 +2549,27 @@ function generateLayoutGridAsync(width, height, onProgress) {
                     for (let r = 0; r <= rows - placeDiameter; r += stride) {
                         for (let c = 0; c <= cols - placeDiameter; c += stride) {
                             let clear = true;
-                            for (let dr = 0; dr < placeDiameter; dr++) {
-                                for (let dc = 0; dc < placeDiameter; dc++) {
+                            
+                            // Check zone boundary constraint for candidate placement
+                            if (plant.assignedZoneIdx !== undefined && plant.assignedZoneIdx !== null && activePolygons && activePolygons[plant.assignedZoneIdx]) {
+                                const candCenterR = r + placeDiameter / 2;
+                                const candCenterC = c + placeDiameter / 2;
+                                const feetPerDegreeLat = 364000;
+                                const feetPerDegreeLng = 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180);
+                                const offsetC = candCenterC - cols / 2;
+                                const offsetR = rows / 2 - candCenterR;
+                                const candLat = gardenCenterLatLng.lat + (offsetR / feetPerDegreeLat);
+                                const candLng = gardenCenterLatLng.lng + (offsetC / feetPerDegreeLng);
+                                
+                                const poly = activePolygons[plant.assignedZoneIdx];
+                                if (!isPointInPolygon({ lat: candLat, lng: candLng }, poly)) {
+                                    clear = false;
+                                }
+                            }
+                            
+                            if (clear) {
+                                for (let dr = 0; dr < placeDiameter; dr++) {
+                                    for (let dc = 0; dc < placeDiameter; dc++) {
                                     const cell = tempGrid[r + dr][c + dc];
                                     if (cell !== null) {
                                         const isLargePlant = (plant.type === 'Fruit Tree' || getPlantHeight(plant) >= 12 || diameter >= 6);
@@ -2421,6 +2591,7 @@ function generateLayoutGridAsync(width, height, onProgress) {
                                     }
                                 }
                                 if (!clear) break;
+                            }
                             }
                             if (clear) {
                                 candidates.push({ r, c, penalty: 0 });
@@ -3220,13 +3391,97 @@ function renderLayoutGrid(width, height) {
         } else {
             // Render rulers once all cells have finished loading into the DOM
             renderRulers(cols, rows, currentCellSize);
+            
+            // Set static satellite image backdrop if tracing boundaries exist
+            if (activePolygons && activePolygons.length > 0 && gardenCenterLatLng) {
+                const bbox = getEnclosingBBox(activePolygons);
+                const textureUrl = `/api/v1/map/static?bbox=${bbox}&width=${Math.round(cols * 25)}&height=${Math.round(rows * 25)}`;
+                gardenGrid.style.backgroundImage = `url('${textureUrl}')`;
+                gardenGrid.style.backgroundSize = '100% 100%';
+                gardenGrid.style.backgroundRepeat = 'no-repeat';
+            } else {
+                gardenGrid.style.backgroundImage = 'none';
+            }
+            
+            // Render text annotations on top of CAD grid cells
+            render2DAnnotations(cols, rows, currentCellSize);
         }
     }
 
     requestAnimationFrame(renderNext2DChunk);
 }
 
-// Render static ruler coordinate ticks (Feet & Meters)
+function getEnclosingBBox(polygons) {
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    polygons.forEach(poly => {
+        poly.forEach(pt => {
+            minLat = Math.min(minLat, pt.lat);
+            maxLat = Math.max(maxLat, pt.lat);
+            minLng = Math.min(minLng, pt.lng);
+            maxLng = Math.max(maxLng, pt.lng);
+        });
+    });
+    return `${minLng},${minLat},${maxLng},${maxLat}`;
+}
+
+function getBBoxFromCenterAndDimensions(center, widthFt, heightFt) {
+    const feetPerDegreeLat = 364000;
+    const feetPerDegreeLng = 364000 * Math.cos(center.lat * Math.PI / 180);
+    
+    // Ensure the bounding box covers a minimum physical span of 180ft (approx. 55 meters) 
+    // so the static satellite imagery is slightly zoomed out and displays house/yard surroundings nicely
+    const spanLat = Math.max(180, heightFt * 1.5);
+    const spanLng = Math.max(180, widthFt * 1.5);
+    
+    const halfLat = (spanLat / 2) / feetPerDegreeLat;
+    const halfLng = (spanLng / 2) / feetPerDegreeLng;
+    
+    const minLat = center.lat - halfLat;
+    const maxLat = center.lat + halfLat;
+    const minLng = center.lng - halfLng;
+    const maxLng = center.lng + halfLng;
+    
+    return `${minLng},${minLat},${maxLng},${maxLat}`;
+}
+
+function render2DAnnotations(cols, rows, currentCellSize) {
+    document.querySelectorAll('.cad-text-annotation').forEach(el => el.remove());
+    if (!mapAnnotations || mapAnnotations.length === 0 || !gardenCenterLatLng) return;
+
+    mapAnnotations.forEach(ann => {
+        const feetPerDegreeLat = 364000;
+        const feetPerDegreeLng = 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180);
+        
+        const dyFt = (ann.lat - gardenCenterLatLng.lat) * feetPerDegreeLat;
+        const dxFt = (ann.lng - gardenCenterLatLng.lng) * feetPerDegreeLng;
+        
+        const col = cols / 2 + dxFt;
+        const row = rows / 2 - dyFt;
+        
+        if (col >= 0 && col <= cols && row >= 0 && row <= rows) {
+            const label = document.createElement('div');
+            label.className = 'cad-text-annotation';
+            label.style.position = 'absolute';
+            label.style.left = `${col * currentCellSize}px`;
+            label.style.top = `${row * currentCellSize}px`;
+            label.style.transform = 'translate(-50%, -50%)';
+            label.style.zIndex = '950';
+            label.style.background = 'rgba(12, 16, 15, 0.9)';
+            label.style.border = '1px solid var(--accent-emerald)';
+            label.style.color = '#fff';
+            label.style.padding = '3px 8px';
+            label.style.borderRadius = '4px';
+            label.style.fontSize = '10px';
+            label.style.fontWeight = '700';
+            label.style.pointerEvents = 'none';
+            label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+            label.style.whiteSpace = 'nowrap';
+            label.innerHTML = `<i class="fa-solid fa-tag" style="color: var(--accent-emerald); margin-right: 4px;"></i> ${ann.text}`;
+            gardenGrid.appendChild(label);
+        }
+    });
+}
+
 function renderRulers(cols, rows, cellWidth) {
     const xRuler = document.getElementById('x-ruler');
     const yRuler = document.getElementById('y-ruler');
@@ -3393,7 +3648,6 @@ function renderRecommendations() {
                 }
                 
                 renderCropTags();
-                submitDesign();
             });
             sugContainer.appendChild(tag);
         });
@@ -4721,6 +4975,9 @@ function update3DLayout(width, height, gridArray) {
         console.log("[DEBUG update3DLayout] skipped, scene3d:", !!scene3d, "gardenGroup3d:", !!gardenGroup3d);
         return;
     }
+    // Increment active 3D render ID task to cancel any older draws immediately
+    const activeRenderId = ++current3DRenderId;
+
     // Clear previous elements with proper memory disposal
     clearGarden3D();
 
@@ -4758,11 +5015,63 @@ function update3DLayout(width, height, gridArray) {
 
     // Ground plane grass lawn card
     const groundGeo = new THREE.BoxGeometry(cols, 0.2, rows);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x142015, roughness: 0.95 }); // Moss green grass
+    let groundMat;
+    if (gardenCenterLatLng) {
+        let bbox;
+        if (activePolygons && activePolygons.length > 0) {
+            bbox = getEnclosingBBox(activePolygons);
+        } else {
+            bbox = getBBoxFromCenterAndDimensions(gardenCenterLatLng, cols, rows);
+        }
+        const textureUrl = `/api/v1/map/static?bbox=${bbox}&width=512&height=512`;
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load(textureUrl);
+        groundMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85 });
+    } else {
+        groundMat = new THREE.MeshStandardMaterial({ color: 0x142015, roughness: 0.95 });
+    }
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.position.y = -0.1;
     ground.receiveShadow = true;
     gardenGroup3d.add(ground);
+
+    // Render floating 3D text annotation billboards
+    if (mapAnnotations && mapAnnotations.length > 0 && gardenCenterLatLng) {
+        mapAnnotations.forEach(ann => {
+            const feetPerDegreeLat = 364000;
+            const feetPerDegreeLng = 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180);
+            
+            const dyFt = (ann.lat - gardenCenterLatLng.lat) * feetPerDegreeLat;
+            const dxFt = (ann.lng - gardenCenterLatLng.lng) * feetPerDegreeLng;
+            
+            const x = dxFt;
+            const z = -dyFt;
+            
+            if (Math.abs(x) <= cols / 2 && Math.abs(z) <= rows / 2) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgba(12, 16, 15, 0.9)';
+                ctx.fillRect(0, 0, 256, 64);
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(0, 0, 256, 64);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(ann.text, 128, 38);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.position.set(x, 4.0, z); // Hovering 4 feet above ground
+                sprite.scale.set(8.0, 2.0, 1.0);
+                sprite.renderOrder = 999;
+                gardenGroup3d.add(sprite);
+            }
+        });
+    }
 
     // Adjust shadow map camera frustum to fit the garden size perfectly
     if (dirLight) {
@@ -4806,8 +5115,7 @@ function update3DLayout(width, height, gridArray) {
 
 
 
-    // Increment active 3D render ID task to cancel any older draws
-    const activeRenderId = ++current3DRenderId;
+
 
     // Collect all elements (boardwalk paths and crops) to build in an async queue
     const renderQueue = [];
@@ -5100,15 +5408,29 @@ window.addEventListener('load', () => {
         selectBoxM.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = menuM.style.display === 'block';
-            menuM.style.display = isOpen ? 'none' : 'block';
-            // Close presets dropdown if open
-            const otherMenu = document.getElementById('presets-dropdown-menu');
-            if (otherMenu) otherMenu.style.display = 'none';
+            const parentStep = selectBoxM.closest('.flow-step');
+            
+            if (isOpen) {
+                menuM.style.display = 'none';
+                if (parentStep) parentStep.classList.remove('dropdown-open');
+            } else {
+                menuM.style.display = 'block';
+                if (parentStep) parentStep.classList.add('dropdown-open');
+                // Close presets dropdown if open
+                const otherMenu = document.getElementById('presets-dropdown-menu');
+                if (otherMenu) {
+                    otherMenu.style.display = 'none';
+                    const otherStep = otherMenu.closest('.flow-step');
+                    if (otherStep) otherStep.classList.remove('dropdown-open');
+                }
+            }
         });
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#methods-dropdown-container')) {
                 menuM.style.display = 'none';
+                const parentStep = selectBoxM.closest('.flow-step');
+                if (parentStep) parentStep.classList.remove('dropdown-open');
             }
             if (popoverM && !popoverM.contains(e.target) && !e.target.closest('.custom-option-item')) {
                 popoverM.style.display = 'none';
@@ -6727,6 +7049,8 @@ let mapInstance = null;
 let drawnPolygonsGroup = null;
 let activePolygons = []; // Array of arrays of {lat, lng} points representing growth areas
 let gardenCenterLatLng = null; // {lat, lng} of the traced garden origin
+let initViewportMap = null;
+let updateViewportZones = null;
 
 // Bounding box area calculation helpers
 function checkCellBlocked(r, c, totalCols, totalRows, centerLat, centerLng, polygons) {
@@ -6831,88 +7155,95 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Interactive Map Tracing Dialog Setup
-    const openModalBtn = document.getElementById('btn-open-satellite-modal');
-    const closeModalBtn = document.getElementById('btn-close-satellite-modal');
-    const modalBackdrop = document.getElementById('satellite-modal-backdrop');
-    const tracingModal = document.getElementById('satellite-tracing-modal');
+    // 2. Main Viewport Map Setup
+    const mainMapContainer = document.getElementById('main-map-container');
+    const layoutScrollPane = document.getElementById('layout-scroll-pane');
     
-    const searchInput = document.getElementById('map-address-input');
-    const searchBtn = document.getElementById('btn-map-search');
-    const suggestionsBox = document.getElementById('map-suggestions');
-    const clearBtn = document.getElementById('btn-map-clear');
-    const confirmBtn = document.getElementById('btn-map-confirm');
+    const headerAddressInput = document.getElementById('header-address-input');
+    const headerSuggestions = document.getElementById('header-address-suggestions');
+    const headerZipInput = document.getElementById('header-zip-input');
+    const viewportClearBtn = document.getElementById('btn-viewport-map-clear');
     
-    const areaDisplay = document.getElementById('map-area-display');
-    const bboxDisplay = document.getElementById('map-bbox-display');
+    const viewportAreaDisplay = document.getElementById('viewport-map-area');
+    const viewportBboxDisplay = document.getElementById('viewport-map-bbox');
+    
+    const modePlantBtn = document.getElementById('btn-mode-plant');
+    const modeTraceBtn = document.getElementById('btn-mode-trace');
+    const opacitySlider = document.getElementById('slider-map-opacity');
+    const opacityLabel = document.getElementById('label-map-opacity');
 
-    function openSatelliteModal() {
-        modalBackdrop.style.display = 'block';
-        tracingModal.style.display = 'flex';
+    // Sidebar redirection button
+    const openSatelliteBtn = document.getElementById('btn-open-satellite-modal');
+    if (openSatelliteBtn) {
+        openSatelliteBtn.addEventListener('click', () => {
+            // Switch to 2D view first
+            const btn2d = document.getElementById('btn-view-2d');
+            if (btn2d) btn2d.click();
+            
+            // Switch to Trace mode
+            if (modeTraceBtn) modeTraceBtn.click();
+        });
+    }
+
+    initViewportMap = function() {
+        if (mapInstance) return;
         
-        // Initial setup of Leaflet Map once container is visible
-        setTimeout(() => {
-            if (!mapInstance) {
-                // Initialize Leaflet Map instance
-                mapInstance = L.map('leaflet-map-container', {
-                    zoomControl: true,
-                    pmIgnore: false
-                }).setView([42.2808, -83.7430], 18); // Default centered on Ann Arbor
+        const defaultCenter = gardenCenterLatLng || { lat: 42.2808, lng: -83.7430 };
+        mapInstance = L.map('main-map-container', {
+            zoomControl: true,
+            attributionControl: false,
+            maxZoom: 19
+        }).setView([defaultCenter.lat, defaultCenter.lng], 19);
 
-                // Fetch dynamic satellite tile proxy from GAMA backend
-                L.tileLayer('/api/v1/map/tile/{z}/{x}/{y}', {
-                    maxZoom: 20,
-                    attribution: '© Esri / Mapbox'
-                }).addTo(mapInstance);
+        L.tileLayer('/api/v1/map/tile/{z}/{x}/{y}', {
+            maxZoom: 19
+        }).addTo(mapInstance);
 
-                // Initialize Geoman Drawing toolbar
-                mapInstance.pm.addControls({
-                    position: 'topleft',
-                    drawMarker: false,
-                    drawCircleMarker: false,
-                    drawPolyline: false,
-                    drawRectangle: true,
-                    drawPolygon: true,
-                    drawCircle: false,
-                    editMode: true,
-                    dragMode: true,
-                    cutPolygon: false,
-                    removalMode: true
-                });
+        drawnPolygonsGroup = L.featureGroup().addTo(mapInstance);
 
-                drawnPolygonsGroup = L.featureGroup().addTo(mapInstance);
+        mapInstance.pm.addControls({
+            position: 'topleft',
+            drawMarker: false,
+            drawCircleMarker: false,
+            drawPolyline: false,
+            drawRectangle: true,
+            drawPolygon: true,
+            drawCircle: false,
+            drawText: true,
+            editMode: true,
+            dragMode: true,
+            cutPolygon: false,
+            removalMode: true
+        });
 
-                // Listen to draw create events
-                mapInstance.on('pm:create', (e) => {
-                    const layer = e.layer;
-                    drawnPolygonsGroup.addLayer(layer);
-                    updateTracingMetrics();
-                    
-                    // Listen to updates on edits or drag
-                    layer.on('pm:edit', updateTracingMetrics);
-                    layer.on('pm:dragend', updateTracingMetrics);
-                });
+        mapInstance.on('pm:create', (e) => {
+            const layer = e.layer;
+            drawnPolygonsGroup.addLayer(layer);
+            updateViewportZones();
+            
+            layer.on('pm:edit', updateViewportZones);
+            layer.on('pm:dragend', updateViewportZones);
+        });
 
-                mapInstance.on('pm:remove', () => {
-                    updateTracingMetrics();
-                });
-            } else {
-                mapInstance.invalidateSize();
-            }
-        }, 300);
+        mapInstance.on('pm:remove', () => {
+            updateViewportZones();
+        });
     }
 
-    function closeSatelliteModal() {
-        modalBackdrop.style.display = 'none';
-        tracingModal.style.display = 'none';
-    }
-
-    function updateTracingMetrics() {
+    updateViewportZones = function() {
         activePolygons = [];
+        mapAnnotations = [];
+        if (!drawnPolygonsGroup) return;
         const layers = drawnPolygonsGroup.getLayers();
         if (layers.length === 0) {
-            areaDisplay.textContent = "Active Planting Area: 0 sq ft";
-            bboxDisplay.textContent = "Bounding Box: 0 x 0 ft";
+            viewportAreaDisplay.textContent = "Planting Area: 0 sq ft";
+            viewportBboxDisplay.textContent = "Bounds: 0 x 0 ft";
+            const inputHeight = document.getElementById('input-height');
+            const inputWidth = document.getElementById('input-width');
+            const gridDimText = document.getElementById('grid-dim-text');
+            if (inputHeight && inputWidth && gridDimText) {
+                gridDimText.textContent = `${inputWidth.value} ${settingsDimUnit} x ${inputHeight.value} ${settingsDimUnit} (1 cell = 1 sq ${settingsDimUnit})`;
+            }
             return;
         }
 
@@ -6920,186 +7251,357 @@ document.addEventListener('DOMContentLoaded', () => {
         let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
 
         layers.forEach(layer => {
-            const latlngs = layer.getLatLngs()[0];
-            const polyPoints = latlngs.map(pt => {
-                minLat = Math.min(minLat, pt.lat);
-                maxLat = Math.max(maxLat, pt.lat);
-                minLng = Math.min(minLng, pt.lng);
-                maxLng = Math.max(maxLng, pt.lng);
-                return { lat: pt.lat, lng: pt.lng };
-            });
-            activePolygons.push(polyPoints);
-
-            // Compute polygon area in square feet using Shoelace formula
-            let polyArea = 0;
-            const feetPerDegreeLat = 364000;
-            const feetPerDegreeLng = 364000 * Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
-            for (let i = 0; i < latlngs.length; i++) {
-                const pt1 = latlngs[i];
-                const pt2 = latlngs[(i + 1) % latlngs.length];
-                const x1 = pt1.lng * feetPerDegreeLng;
-                const y1 = pt1.lat * feetPerDegreeLat;
-                const x2 = pt2.lng * feetPerDegreeLng;
-                const y2 = pt2.lat * feetPerDegreeLat;
-                polyArea += (x1 * y2) - (x2 * y1);
-            }
-            totalSqFt += Math.abs(polyArea / 2);
-        });
-
-        // Set garden center at the centroid of bounding box coordinates
-        gardenCenterLatLng = {
-            lat: (minLat + maxLat) / 2,
-            lng: (minLng + maxLng) / 2
-        };
-
-        // Determine bounding box dimension spans in feet
-        const latFeet = (maxLat - minLat) * 364000;
-        const lngFeet = (maxLng - minLng) * 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180);
-
-        areaDisplay.textContent = `Active Planting Area: ${Math.round(totalSqFt)} sq ft`;
-        bboxDisplay.textContent = `Bounding Box: ${Math.round(lngFeet)} x ${Math.round(latFeet)} ft`;
-    }
-
-    // Geocoding Autocomplete Search Input listeners
-    let typingTimer;
-    if (searchInput) {
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (searchBtn) searchBtn.click();
-            }
-        });
-
-        searchInput.addEventListener('input', () => {
-            clearTimeout(typingTimer);
-            const val = searchInput.value.trim();
-            if (val.length < 3) {
-                suggestionsBox.classList.add('hidden');
-                return;
-            }
-            typingTimer = setTimeout(async () => {
-                try {
-                    const res = await fetch(`/api/v1/map/geocode?q=${encodeURIComponent(val)}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        suggestionsBox.innerHTML = '';
-                        if (data.length === 0) {
-                            suggestionsBox.classList.add('hidden');
-                            return;
-                        }
-                        suggestionsBox.classList.remove('hidden');
-                        data.forEach(item => {
-                            const div = document.createElement('div');
-                            div.className = 'suggestion-item';
-                            div.textContent = item.name;
-                            div.addEventListener('click', () => {
-                                searchInput.value = item.name;
-                                suggestionsBox.classList.add('hidden');
-                                if (mapInstance) {
-                                    mapInstance.setView([item.lat, item.lng], 19);
-                                }
-                            });
-                            suggestionsBox.appendChild(div);
-                        });
-                    }
-                } catch (err) {
-                    console.error("Geocoding lookup error:", err);
-                }
-            }, 300);
-        });
-
-        // Close suggestions on outside click
-        document.addEventListener('click', (e) => {
-            if (e.target !== searchInput && e.target !== suggestionsBox) {
-                suggestionsBox.classList.add('hidden');
-            }
-        });
-    }
-
-    if (searchBtn) {
-        searchBtn.addEventListener('click', async () => {
-            const val = searchInput.value.trim();
-            if (!val) return;
-            try {
-                const res = await fetch(`/api/v1/map/geocode?q=${encodeURIComponent(val)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.length > 0) {
-                        const item = data[0];
-                        searchInput.value = item.name;
-                        suggestionsBox.classList.add('hidden');
-                        if (mapInstance) {
-                            mapInstance.setView([item.lat, item.lng], 19);
-                        }
-                    } else {
-                        alert("Address not found. Please try a different search phrase.");
-                    }
-                }
-            } catch (err) {
-                alert("Failed to connect to geocoding services.");
-            }
-        });
-    }
-
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            if (drawnPolygonsGroup) {
-                drawnPolygonsGroup.clearLayers();
-                updateTracingMetrics();
-            }
-        });
-    }
-
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-            if (activePolygons.length === 0 || !gardenCenterLatLng) {
-                alert("Please draw at least one growing layout polygon on the map before confirming.");
-                return;
-            }
-
-            // Extract enclosing bounding box dimension spans
-            let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-            drawnPolygonsGroup.getLayers().forEach(layer => {
-                layer.getLatLngs()[0].forEach(pt => {
+            if (layer instanceof L.Polygon) {
+                const latlngs = layer.getLatLngs()[0];
+                const polyPoints = latlngs.map(pt => {
                     minLat = Math.min(minLat, pt.lat);
                     maxLat = Math.max(maxLat, pt.lat);
                     minLng = Math.min(minLng, pt.lng);
                     maxLng = Math.max(maxLng, pt.lng);
+                    return { lat: pt.lat, lng: pt.lng };
                 });
-            });
+                activePolygons.push(polyPoints);
 
-            const latFeet = Math.max(10, Math.round((maxLat - minLat) * 364000));
-            const lngFeet = Math.max(10, Math.round((maxLng - minLng) * 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180)));
+                // Compute polygon area using Shoelace formula
+                let polyArea = 0;
+                const feetPerDegreeLat = 364000;
+                const feetPerDegreeLng = 364000 * Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+                for (let i = 0; i < latlngs.length; i++) {
+                    const pt1 = latlngs[i];
+                    const pt2 = latlngs[(i + 1) % latlngs.length];
+                    const x1 = pt1.lng * feetPerDegreeLng;
+                    const y1 = pt1.lat * feetPerDegreeLat;
+                    const x2 = pt2.lng * feetPerDegreeLng;
+                    const y2 = pt2.lat * feetPerDegreeLat;
+                    polyArea += (x1 * y2) - (x2 * y1);
+                }
+                totalSqFt += Math.abs(polyArea / 2);
+            } else if (layer instanceof L.Marker) {
+                const latlng = layer.getLatLng();
+                const text = layer.options.text || layer.pmText || layer.options.pmText || "Annotation";
+                mapAnnotations.push({
+                    text: text,
+                    lat: latlng.lat,
+                    lng: latlng.lng
+                });
+            }
+        });
 
-            // Update Garden length and width parameter fields to match bounding box bounding dimensions
+        if (activePolygons.length > 0) {
+            gardenCenterLatLng = {
+                lat: (minLat + maxLat) / 2,
+                lng: (minLng + maxLng) / 2
+            };
+            const latFeet = (maxLat - minLat) * 364000;
+            const lngFeet = (maxLng - minLng) * 364000 * Math.cos(gardenCenterLatLng.lat * Math.PI / 180);
+
+            const roundedLat = Math.max(10, Math.round(latFeet));
+            const roundedLng = Math.max(10, Math.round(lngFeet));
+
             const inputHeight = document.getElementById('input-height');
             const inputWidth = document.getElementById('input-width');
-            
             if (inputHeight && inputWidth) {
-                // If dimensions are in meters, translate bounds back to meters
                 if (settingsDimUnit === 'm') {
-                    inputHeight.value = Math.round(latFeet * 0.3048);
-                    inputWidth.value = Math.round(lngFeet * 0.3048);
+                    inputHeight.value = Math.round(roundedLat * 0.3048);
+                    inputWidth.value = Math.round(roundedLng * 0.3048);
                 } else {
-                    inputHeight.value = latFeet;
-                    inputWidth.value = lngFeet;
+                    inputHeight.value = roundedLat;
+                    inputWidth.value = roundedLng;
                 }
+                updateFencingPerimeter();
             }
 
-            closeSatelliteModal();
+            const gridDimText = document.getElementById('grid-dim-text');
+            if (gridDimText) {
+                gridDimText.textContent = `${roundedLng} ${settingsDimUnit} x ${roundedLat} ${settingsDimUnit} (1 cell = 1 sq ${settingsDimUnit})`;
+            }
+
+            viewportAreaDisplay.textContent = `Planting Area: ${Math.round(totalSqFt)} sq ft`;
+            viewportBboxDisplay.textContent = `Bounds: ${Math.round(lngFeet)} x ${Math.round(latFeet)} ft`;
+        }
+
+        function zoomIn3DCamera(amount = 15) {
+            if (camera3d && cameraTarget3d) {
+                const target = cameraTarget3d;
+                const dir = new THREE.Vector3().subVectors(target, camera3d.position).normalize();
+                const newPos = camera3d.position.clone().addScaledVector(dir, amount);
+                const dist = newPos.distanceTo(target);
+                if (dist > 8 && dist < 800) {
+                    camera3d.position.copy(newPos);
+                }
+                camera3d.lookAt(target);
+            }
+        }
+
+        // Seamless 3D zoom transition when zooming in past level 19
+        mapInstance.on('zoomend', () => {
+            if (isTraceModeActive && mapInstance.getZoom() >= 19) {
+                setTimeout(() => {
+                    if (isTraceModeActive && mapInstance && mapInstance.getZoom() >= 19) {
+                        const btn3d = document.getElementById('btn-view-3d');
+                        if (btn3d) {
+                            btn3d.click();
+                            zoomIn3DCamera(15);
+                        }
+                    }
+                }, 100);
+            }
+        });
+
+        // Wheel scroll gesture listener on the container
+        const mapContainer = document.getElementById('main-map-container');
+        if (mapContainer) {
+            mapContainer.addEventListener('wheel', (e) => {
+                if (isTraceModeActive && mapInstance && mapInstance.getZoom() >= 19 && e.deltaY < 0) {
+                    const btn3d = document.getElementById('btn-view-3d');
+                    if (btn3d) {
+                        btn3d.click();
+                        zoomIn3DCamera(15);
+                    }
+                }
+            });
             
-            // Auto-trigger full layout redesign utilizing the updated mapped coordinates
-            submitDesign();
+            // Also intercept click on zoom-in control
+            setTimeout(() => {
+                const zoomInBtn = mapContainer.querySelector('.leaflet-control-zoom-in');
+                if (zoomInBtn) {
+                    zoomInBtn.addEventListener('click', () => {
+                        if (isTraceModeActive && mapInstance && mapInstance.getZoom() >= 19) {
+                            const btn3d = document.getElementById('btn-view-3d');
+                            if (btn3d) {
+                                btn3d.click();
+                                zoomIn3DCamera(15);
+                            }
+                        }
+                    });
+                }
+            }, 500);
+        }
+    }
+
+    if (opacitySlider && opacityLabel) {
+        opacitySlider.addEventListener('input', () => {
+            const val = opacitySlider.value;
+            opacityLabel.textContent = `${val}%`;
+            mainMapContainer.style.opacity = val / 100;
         });
     }
 
-    if (openModalBtn) {
-        openModalBtn.addEventListener('click', openSatelliteModal);
+    if (viewportClearBtn) {
+        viewportClearBtn.addEventListener('click', () => {
+            if (drawnPolygonsGroup) {
+                drawnPolygonsGroup.clearLayers();
+                updateViewportZones();
+            }
+        });
     }
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', closeSatelliteModal);
+
+
+    // Editable Header Location Sync & Geocoding Autocomplete
+    function updateHeaderLocationInfo(zip) {
+        const info = zipCodeInfo[zip] || { city: "Ann Arbor, MI", zone: "Zone 6a" };
+        const zipInput = document.getElementById('header-zip-input');
+        if (zipInput) zipInput.value = zip;
+        
+        const hiddenZipInput = document.getElementById('input-zip');
+        if (hiddenZipInput) hiddenZipInput.value = zip;
+
+        const zoneDisplay = document.getElementById('hdr-zone');
+        if (zoneDisplay) zoneDisplay.textContent = info.zone;
+
+        const weatherDisplay = document.getElementById('hdr-weather');
+        if (weatherDisplay) {
+            const temp = 55 + (parseInt(zip) % 25);
+            weatherDisplay.textContent = `${temp}°F Partly Cloudy`;
+        }
+
+        // Refresh wild foraging lists for the new zone
+        const container = document.getElementById('forage-grid-container');
+        if (container) {
+            const forageZipDisplay = document.getElementById('lbl-forage-zip');
+            if (forageZipDisplay) forageZipDisplay.textContent = zip;
+            const zipTitle = document.getElementById('forage-zone-title');
+            if (zipTitle) zipTitle.textContent = `Edibles Local to ${info.city}`;
+            const zipSubtitle = document.getElementById('forage-zone-subtitle');
+            if (zipSubtitle) zipSubtitle.textContent = `USDA Hardiness ${info.zone}`;
+            
+            const digitMatch = info.zone.match(/\d+/);
+            const activeZoneDigit = digitMatch ? parseInt(digitMatch[0]) : 6;
+            container.innerHTML = '';
+            const foragePlants = allPlants.filter(p => {
+                if (p.type !== 'Wild Edible') return false;
+                const zones = p.usda_zones.split(',').map(z => parseInt(z.trim()));
+                return zones.includes(activeZoneDigit);
+            });
+            if (foragePlants.length === 0) {
+                container.innerHTML = '<p class="placeholder-text" style="grid-column: 1/-1; text-align: center; padding: 40px 0;">No wild foraging data seeded for your climate zone.</p>';
+            } else {
+                foragePlants.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'plant-card';
+                    card.style.background = 'rgba(255,255,255,0.02)';
+                    card.style.border = '1px solid var(--border-color)';
+                    card.style.borderRadius = 'var(--radius-md)';
+                    card.style.padding = '12px';
+                    card.style.display = 'flex';
+                    card.style.flexDirection = 'column';
+                    card.style.gap = '6px';
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="color:var(--text-primary); font-size:12px;">${p.name}</strong>
+                            <span class="badge" style="background:rgba(16,185,129,0.1); color:var(--accent-emerald); font-size:9px; font-weight:700;">Zone ${p.usda_zones}</span>
+                        </div>
+                        <span style="font-size:10px; color:var(--text-secondary); font-style:italic;">${p.scientific_name || ''}</span>
+                        <p style="margin:0; font-size:10px; line-height:1.4; color:rgba(255,255,255,0.7);">${p.description || ''}</p>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        }
     }
+
+    let hTypingTimer;
+    if (headerAddressInput) {
+        headerAddressInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = headerAddressInput.value.trim();
+                if (!val) return;
+                try {
+                    const res = await fetch(`/api/v1/map/geocode?q=${encodeURIComponent(val)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.length > 0) {
+                            const item = data[0];
+                            headerAddressInput.value = item.name;
+                            if (headerSuggestions) headerSuggestions.classList.add('hidden');
+                            gardenCenterLatLng = { lat: item.lat, lng: item.lng };
+                            if (mapInstance) {
+                                mapInstance.setView([item.lat, item.lng], 19);
+                            }
+                            const zipMatch = item.name.match(/\b\d{5}\b/);
+                            if (zipMatch) {
+                                updateHeaderLocationInfo(zipMatch[0]);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error("Geocoding search failed:", err);
+                }
+            }
+        });
+
+        headerAddressInput.addEventListener('input', () => {
+            clearTimeout(hTypingTimer);
+            const val = headerAddressInput.value.trim();
+            if (val.length < 3) {
+                if (headerSuggestions) headerSuggestions.classList.add('hidden');
+                return;
+            }
+            hTypingTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/v1/map/geocode?q=${encodeURIComponent(val)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (headerSuggestions) {
+                            headerSuggestions.innerHTML = '';
+                            if (data.length === 0) {
+                                headerSuggestions.classList.add('hidden');
+                                return;
+                            }
+                            headerSuggestions.classList.remove('hidden');
+                            data.forEach(item => {
+                                const div = document.createElement('div');
+                                div.className = 'suggestion-item';
+                                div.textContent = item.name;
+                                div.addEventListener('click', () => {
+                                    headerAddressInput.value = item.name;
+                                    headerSuggestions.classList.add('hidden');
+                                    gardenCenterLatLng = { lat: item.lat, lng: item.lng };
+                                    if (mapInstance) {
+                                        mapInstance.setView([item.lat, item.lng], 19);
+                                    }
+                                    const zipMatch = item.name.match(/\b\d{5}\b/);
+                                    if (zipMatch) {
+                                        updateHeaderLocationInfo(zipMatch[0]);
+                                    }
+                                });
+                                headerSuggestions.appendChild(div);
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error("Geocoding autocomplete query error:", err);
+                }
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (headerSuggestions && e.target !== headerAddressInput && e.target !== headerSuggestions) {
+                headerSuggestions.classList.add('hidden');
+            }
+        });
+    }
+
+    if (headerZipInput) {
+        headerZipInput.addEventListener('change', () => {
+            const val = headerZipInput.value.trim();
+            if (/^\d{5}$/.test(val)) {
+                updateHeaderLocationInfo(val);
+            }
+        });
+    }
+
+    // Initialize location info with default value
+    updateHeaderLocationInfo("48133");
+
+    async function initDefaultGeolocation() {
+        try {
+            const res = await fetch('https://freeipapi.com/api/json');
+            if (res.ok) {
+                const geoData = await res.json();
+                if (geoData && geoData.latitude && geoData.longitude) {
+                    const lat = geoData.latitude;
+                    const lng = geoData.longitude;
+                    const zip = geoData.zipCode || "48104";
+                    const city = geoData.cityName || "Ann Arbor";
+                    const region = geoData.regionName || "MI";
+                    
+                    // Set global coordinates
+                    gardenCenterLatLng = { lat: lat, lng: lng };
+                    
+                    // Update editable location header inputs
+                    const headerAddress = document.getElementById('header-address-input');
+                    const headerZip = document.getElementById('header-zip-input');
+                    const hiddenZip = document.getElementById('input-zip');
+                    
+                    if (headerAddress) {
+                        headerAddress.value = `${city}, ${region} ${zip}`;
+                    }
+                    if (headerZip) {
+                        headerZip.value = zip;
+                    }
+                    if (hiddenZip) {
+                        hiddenZip.value = zip;
+                    }
+                    
+                    // Update weather, climate zone, and wild foraging local widget
+                    updateHeaderLocationInfo(zip);
+                    
+                    // If mapInstance is already created, center it!
+                    if (mapInstance) {
+                        mapInstance.setView([lat, lng], 19);
+                    }
+                    
+                    // Trigger 3D view update so the ground plane is populated with the satellite texture!
+                    if (scene3d) {
+                        trigger3DRender();
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("IP-based default geolocation failed:", err);
+        }
+    }
+    initDefaultGeolocation();
 });
-
-
-

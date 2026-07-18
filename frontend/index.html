@@ -90,16 +90,8 @@
             <div class="sidebar-form-card" id="sidebar-parameters-card">
                 <h3><i class="fa-solid fa-sliders"></i> Garden Setup</h3>
                 
-                <!-- Satellite Layout Tracing Button -->
-                <button type="button" id="btn-open-satellite-modal" class="btn" style="width: 100%; margin-top: 4px; margin-bottom: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Outfit';">
-                    <i class="fa-solid fa-earth-americas"></i> Trace Satellite Layout
-                </button>
-
                 <form id="design-form" onsubmit="event.preventDefault(); submitDesign();">
-                    <div class="form-group">
-                        <label for="input-zip">ZIP Code</label>
-                        <input type="text" id="input-zip" value="48195" required pattern="\d{5}">
-                    </div>
+                    <input type="hidden" id="input-zip" value="48133">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="input-height" id="lbl-height-unit">Length (ft)</label>
@@ -180,30 +172,37 @@
                     <div class="user-profile" style="padding-left: 0; border-left: none;">
                         <img src="https://api.dicebear.com/7.x/bottts/svg?seed=GardenAI" alt="Avatar" class="avatar">
                         <div class="user-info">
-                            <span class="user-name">Brett Buchanan</span>
-                            <span class="user-zone">Zone 6a</span>
+                            <input type="text" id="header-user-name" value="Brett Buchanan" style="background: transparent; border: none; outline: none; border-bottom: 1px dashed rgba(255,255,255,0.25); color: var(--text-primary); font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 13px; width: 110px; padding: 2px;" title="User Name">
                         </div>
                     </div>
-                    <div class="header-status" style="display: flex; gap: 24px; border-left: 1px solid var(--border-color); padding-left: 24px; align-items: center;">
+                    <div class="header-status" style="display: flex; gap: 20px; border-left: 1px solid var(--border-color); padding-left: 20px; align-items: center;">
+                        <div class="status-widget" style="position: relative;">
+                            <i class="fa-solid fa-location-dot" style="margin-top: 4px;"></i>
+                            <div style="display: flex; flex-direction: column;">
+                                <span class="widget-label">Address</span>
+                                <input type="text" id="header-address-input" value="2727 E Substation Rd, Erie, MI 48133" placeholder="Enter address to center map..." style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); width: 280px; outline: none; height: 24px;">
+                                <div id="header-address-suggestions" class="suggestions-box hidden" style="position: absolute; top: 40px; left: 0; width: 280px; max-height: 150px; overflow-y: auto; z-index: 10020; background: #0c100f; border: 1px solid var(--border-color); border-radius: var(--radius-sm);"></div>
+                            </div>
+                        </div>
                         <div class="status-widget">
-                            <i class="fa-solid fa-location-dot"></i>
+                            <i class="fa-solid fa-earth-americas"></i>
                             <div>
-                                <span class="widget-label">Location</span>
-                                <span class="widget-value" id="hdr-zip">48195 (Ann Arbor, MI)</span>
+                                <span class="widget-label">ZIP</span>
+                                <input type="text" id="header-zip-input" value="48133" style="background: transparent; border: none; outline: none; border-bottom: 1px dashed rgba(255,255,255,0.25); color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 11px; width: 45px; padding: 2px; text-align: center;" pattern="\d{5}">
                             </div>
                         </div>
                         <div class="status-widget">
                             <i class="fa-solid fa-temperature-half"></i>
                             <div>
                                 <span class="widget-label">Weather</span>
-                                <span class="widget-value">62°F Partly Cloudy</span>
+                                <span class="widget-value" id="hdr-weather">62°F Partly Cloudy</span>
                             </div>
                         </div>
                         <div class="status-widget">
                             <i class="fa-solid fa-mountain-sun"></i>
                             <div>
                                 <span class="widget-label">Zone</span>
-                                <span class="widget-value" id="hdr-zone">Zone 6a</span>
+                                <span class="widget-value" id="hdr-zone" style="font-weight: 700; color: var(--accent-emerald);">Zone 6b</span>
                             </div>
                         </div>
                     </div>
@@ -255,11 +254,14 @@
 
                 <!-- TAB 2: GARDEN DESIGN -->
                 <div class="tab-pane active" id="design-tab">
-                    
-
-
-                    <!-- Garden Design Flowcard -->
-                    <div class="card garden-design-flow-card">
+                    <!-- Side-by-side Desktop Design Layout -->
+                    <div class="design-desktop-layout">
+                        
+                        <!-- Left Column: Setup Flow & Controls -->
+                        <div class="design-left-col">
+                        <div style="display: flex; flex-direction: column; gap: 24px; min-width: 0;">
+                            <!-- Garden Design Flowcard -->
+                            <div class="card garden-design-flow-card" style="margin-bottom: 0;">
                         
                         <!-- Step 1: Select & Add Crops & Choose Methodologies -->
                         <div class="flow-step step-1">
@@ -528,108 +530,114 @@
                             </div>
                         </div>
                         
+                        </div>
                     </div>
+                </div>
+                        <!-- Right Column: Viewport & Diagnostics -->
+                        <div class="design-right-col" style="display: flex; flex-direction: column; gap: 24px; min-width: 0;">
+                    <div class="card layout-panel" style="margin-bottom: 24px; width: 100%;">
+                        <div class="panel-header">
+                            <h3>Plot Layout Preview</h3>
+                            <div class="layout-toggle" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                <button class="toggle-btn" id="btn-toggle-trace" style="border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-draw-polygon" style="margin-right: 4px;"></i> Trace Satellite Layout</button>
+                                <button class="toggle-btn active" id="btn-view-3d"><i class="fa-solid fa-cube" style="margin-right: 4px;"></i> 3D View</button>
+                                <button class="toggle-btn" id="btn-view-2d"><i class="fa-solid fa-map" style="margin-right: 4px;"></i> 2D Plan</button>
+                                <button class="toggle-btn" id="btn-edit-mode" style="border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Plant Positions</button>
+                                <button class="toggle-btn" id="btn-sun-animate" style="border-color: rgba(245, 158, 11, 0.4); min-width: 96px;"><i class="fa-solid fa-sun" style="margin-right: 4px;"></i> Sun Path</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Viewport Mapping and Mode Controls Toolbar -->
+                        <div id="map-controls-toolbar" style="display: none; flex-wrap: wrap; gap: 8px; padding: 12px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); align-items: center; font-size: 11.5px; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                            <!-- Opacity slider -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="color: var(--text-secondary); font-size: 11px;">Map Opacity:</label>
+                                <input type="range" id="slider-map-opacity" min="0" max="100" value="50" style="width: 80px; height: 4px; accent-color: var(--accent-emerald);">
+                                <span id="label-map-opacity" style="font-family: monospace; font-size: 11px; min-width: 28px;">50%</span>
+                            </div>
+                            <!-- Metrics displays -->
+                            <div style="display: flex; flex-direction: column; gap: 2px; margin-left: 12px; min-width: 140px;">
+                                <span id="viewport-map-area" style="font-size: 10.5px; font-weight: 700; color: var(--accent-emerald);">Planting Area: 0 sq ft</span>
+                                <span id="viewport-map-bbox" style="font-size: 9.5px; color: var(--text-secondary);">Bounds: 0 x 0 ft</span>
+                            </div>
+                            <!-- Clear button -->
+                            <button type="button" id="btn-viewport-map-clear" class="btn" style="height: 28px; padding: 0 10px; font-size: 11px; margin: 0; background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; font-weight: 700; border-radius: var(--radius-sm); display: none;">Clear Zones</button>
+                        </div>
 
+                        <!-- CAD Viewport Container -->
+                        <div class="cad-viewport" id="cad-viewport-container" style="position: relative;">
+                            <!-- Column 1: Y Ruler -->
+                            <div class="y-ruler-container">
+                                <div id="y-ruler" class="ruler y-ruler"></div>
+                            </div>
+                            <!-- Column 2, Row 1: Leaflet mapping container -->
+                            <div id="main-map-container" style="grid-column: 2; grid-row: 1; width: 100%; height: 480px; border-radius: var(--radius-md); z-index: 1;"></div>
+                            <!-- Column 2, Row 1: Grid viewport pane -->
+                            <div class="viewport-pane" id="layout-scroll-pane" style="grid-column: 2; grid-row: 1; z-index: 2;">
+                                <div class="grid-canvas" id="garden-grid">
+                                    <!-- Cells will be dynamically generated by JS -->
+                                </div>
+                            </div>
+                            <!-- Column 2, Row 2: X Ruler -->
+                            <div class="x-ruler-container">
+                                <div id="x-ruler" class="ruler x-ruler"></div>
+                            </div>
+                        </div>
+
+                        <!-- 3D Canvas container -->
+                        <div id="3d-canvas-container" class="hidden" style="position: relative; width: 100%; height: 480px; border-radius: var(--radius-md); overflow: hidden;">
+                            <!-- Floating 3D Tooltip -->
+                            <div id="3d-tooltip" style="position: absolute; display: none; background: rgba(12, 16, 15, 0.94); border: 1px solid var(--accent-emerald); border-radius: var(--radius-md); padding: 10px 14px; font-size: 11px; z-index: 1000; pointer-events: none; box-shadow: var(--shadow-lg); width: max-content; max-width: 240px; color: var(--text-primary); transition: opacity 0.15s;">
+                                <strong id="tooltip-name" style="color: var(--accent-emerald); display: block; font-size: 12px; margin-bottom: 2px;">Plant</strong>
+                                <span id="tooltip-meta" style="color: var(--text-secondary); font-size: 10px; display: block; margin-bottom: 4px; font-weight: 600;">Type</span>
+                                <p id="tooltip-desc" style="margin: 0; line-height: 1.35; color: rgba(255,255,255,0.75);">Description</p>
+                            </div>
+                            <!-- Clock Overlay -->
+                            <div id="3d-solar-clock" style="position: absolute; bottom: 20px; left: 20px; background: rgba(12, 16, 15, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); padding: 8px 14px; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; color: #f59e0b; z-index: 990; pointer-events: none; display: none; align-items: center; gap: 8px; box-shadow: var(--shadow-lg);">
+                                <i class="fa-solid fa-clock"></i> <span id="solar-clock-text">08:00 AM</span>
+                            </div>
+                            <!-- Solar Controls Panel -->
+                            <div id="3d-solar-controls" style="position: absolute; top: 20px; left: 20px; background: rgba(12, 16, 15, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); padding: 12px 16px; font-family: 'Outfit', sans-serif; width: 220px; z-index: 990; display: none; flex-direction: column; gap: 10px; box-shadow: var(--shadow-lg);">
+                                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                                    <span>Solar Arc Controls</span>
+                                    <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
+                                        <span>Shadow Stretch</span>
+                                        <span id="lbl-shadow-stretch">1.0x</span>
+                                    </div>
+                                    <input type="range" id="slider-shadow-stretch" min="1.0" max="4.0" step="0.1" value="1.0" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
+                                        <span>Shadow Contrast</span>
+                                        <span id="lbl-shadow-contrast">80%</span>
+                                    </div>
+                                    <input type="range" id="slider-shadow-contrast" min="0" max="100" step="5" value="80" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
+                                        <span>Simulation Speed</span>
+                                        <span id="lbl-sun-speed">1.0x</span>
+                                    </div>
+                                    <input type="range" id="slider-sun-speed" min="0.1" max="10.0" step="0.1" value="1.0" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="layout-footer">
+                            <span class="grid-dimension" id="grid-dim-text">20 ft x 30 ft (600 sq ft)</span>
+                            <div class="legend">
+                                <span class="legend-item"><span class="legend-color path"></span> Path</span>
+                                <span class="legend-item"><span class="legend-color crop"></span> Planted</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="design-layout-grid">
 
                         <!-- Left Column: Interactive Layout Panel & Compatibility Recommendations -->
                         <div style="display: flex; flex-direction: column; gap: 24px; min-width: 0;">
-                            <!-- Interactive Layout Panel -->
-                            <div class="card layout-panel" style="margin-bottom: 0;">
-                                <div class="panel-header">
-                                    <h3>Plot Layout Preview</h3>
-                                    <div class="layout-toggle" style="display: flex; gap: 8px; align-items: center;">
-                                        <button class="toggle-btn" id="btn-edit-mode" style="border-color: rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-pencil" style="margin-right: 4px;"></i> Edit Layout</button>
-                                        <div class="segmented-control" id="view-toggle-container">
-                                            <button class="segment-btn active" id="btn-view-3d"><i class="fa-solid fa-cube" style="margin-right: 4px;"></i> 3D View</button>
-                                            <button class="segment-btn" id="btn-view-2d"><i class="fa-solid fa-map" style="margin-right: 4px;"></i> 2D Layout</button>
-                                        </div>
-                                        <button class="toggle-btn" id="btn-sun-animate" style="border-color: rgba(245, 158, 11, 0.4); min-width: 96px;"><i class="fa-solid fa-sun" style="margin-right: 4px;"></i> Sun Path</button>
-                                    </div>
-                                </div>
-                                <div class="layout-canvas-container">
-                                    <!-- Dynamic Compass Rose Widget with Draggable Inner Dial -->
-                                    <div class="compass-widget" title="Garden Orientation (Drag inner dial to rotate garden plot relative to North)">
-                                        <div class="compass-outer-ring" id="compass-outer-ring">
-                                            <span class="compass-marker n">N</span>
-                                            <span class="compass-marker e">E</span>
-                                            <span class="compass-marker s">S</span>
-                                            <span class="compass-marker w">W</span>
-                                        </div>
-                                        <div class="compass-dial">
-                                            <div class="compass-needle" id="compass-needle"></div>
-                                        </div>
-                                    </div>
-                                    <div id="compass-angle-display" style="position: absolute; top: 110px; right: 20px; font-size: 9px; font-weight: 700; color: var(--text-secondary); background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); z-index: 995; pointer-events: none; text-transform: uppercase;">Orient: 0° N</div>
-                                    <div class="cad-viewport hidden" id="cad-viewport-container">
-                                        <!-- Rotatable 2D North Arrow -->
-                                        <div id="cad-north-arrow" style="position: absolute; bottom: 45px; left: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; z-index: 990; opacity: 0.65; font-family: 'Outfit', sans-serif;">
-                                            <div style="font-size: 10px; font-weight: 800; color: #ef4444; margin-bottom: 2px;">N</div>
-                                            <i class="fa-solid fa-arrow-up" style="font-size: 24px; color: #ef4444; transform: rotate(0deg); transition: transform 0.2s ease-out; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></i>
-                                        </div>
-                                        <div class="y-ruler-container" id="y-ruler-pane">
-                                            <div id="y-ruler" style="display: flex; flex-direction: column;"></div>
-                                        </div>
-                                        <div class="layout-canvas-scroll-pane" id="layout-scroll-pane">
-                                            <div id="garden-grid" class="garden-grid-canvas">
-                                                <!-- Dynamic Grid Cells go here -->
-                                            </div>
-                                        </div>
-                                        <div class="ruler-origin"></div>
-                                        <div class="x-ruler-container" id="x-ruler-pane">
-                                            <div id="x-ruler" style="display: flex; flex-direction: row;"></div>
-                                        </div>
-                                    </div>
-                                    <div id="3d-canvas-container" style="position: relative; width: 100%; height: 500px; border-radius: var(--radius-md); overflow: hidden;">
-                                        <!-- Dynamic WebGL canvas goes here -->
-                                        <!-- Floating 3D Tooltip -->
-                                        <div id="3d-tooltip" style="position: absolute; display: none; background: rgba(12, 16, 15, 0.94); border: 1px solid var(--accent-emerald); border-radius: var(--radius-md); padding: 10px 14px; font-size: 11px; z-index: 1000; pointer-events: none; box-shadow: var(--shadow-lg); width: max-content; max-width: 240px; color: var(--text-primary); transition: opacity 0.15s;">
-                                            <strong id="tooltip-name" style="color: var(--accent-emerald); display: block; font-size: 12px; margin-bottom: 2px;">Plant</strong>
-                                            <span id="tooltip-meta" style="color: var(--text-secondary); font-size: 10px; display: block; margin-bottom: 4px; font-weight: 600;">Type</span>
-                                            <p id="tooltip-desc" style="margin: 0; line-height: 1.35; color: rgba(255,255,255,0.75);">Description</p>
-                                        </div>
-                                        <!-- Clock Overlay -->
-                                        <div id="3d-solar-clock" style="position: absolute; bottom: 20px; left: 20px; background: rgba(12, 16, 15, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); padding: 8px 14px; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; color: #f59e0b; z-index: 990; pointer-events: none; display: none; align-items: center; gap: 8px; box-shadow: var(--shadow-lg);">
-                                            <i class="fa-solid fa-clock"></i> <span id="solar-clock-text">08:00 AM</span>
-                                        </div>
-                                        <!-- Solar Controls Panel -->
-                                        <div id="3d-solar-controls" style="position: absolute; top: 20px; left: 20px; background: rgba(12, 16, 15, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); padding: 12px 16px; font-family: 'Outfit', sans-serif; width: 220px; z-index: 990; display: none; flex-direction: column; gap: 10px; box-shadow: var(--shadow-lg);">
-                                            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-                                                <span>Solar Arc Controls</span>
-                                                <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>
-                                            </div>
-                                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
-                                                    <span>Shadow Stretch</span>
-                                                    <span id="lbl-shadow-stretch">1.0x</span>
-                                                </div>
-                                                <input type="range" id="slider-shadow-stretch" min="1.0" max="4.0" step="0.1" value="1.0" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
-                                            </div>
-                                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
-                                                    <span>Shadow Contrast</span>
-                                                    <span id="lbl-shadow-contrast">80%</span>
-                                                </div>
-                                                <input type="range" id="slider-shadow-contrast" min="0" max="100" step="5" value="80" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
-                                            </div>
-                                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); font-weight: 600;">
-                                                    <span>Simulation Speed</span>
-                                                    <span id="lbl-sun-speed">1.0x</span>
-                                                </div>
-                                                <input type="range" id="slider-sun-speed" min="0.1" max="10.0" step="0.1" value="1.0" style="accent-color: #f59e0b; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="layout-footer">
-                                    <span class="grid-dimension" id="grid-dim-text">20 ft x 30 ft (600 sq ft)</span>
-                                    <div class="legend">
-                                        <span class="legend-item"><span class="legend-color path"></span> Path</span>
-                                        <span class="legend-item"><span class="legend-color crop"></span> Planted</span>
-                                    </div>
-                                </div>
-                            </div>
                             
                             <!-- Compatibility Recommendations Panel (Separated & placed below Plot Layout Preview) -->
                             <div class="card recommendations-panel" style="margin-top: 0;">
@@ -689,7 +697,8 @@
                         </div>
 
                     </div>
-                </div>
+                        </div>
+                    </div>
 
             <!-- TAB: EXPERT HUB (MULTI-AGENT DIAGNOSTICS) -->
             <div class="tab-pane" id="agents-tab">

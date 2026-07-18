@@ -253,7 +253,11 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
             "oak", "maple", "pine", "cedar", "elm", "birch", "willow", 
             "fir", "spruce", "cypress", "redwood", "beech", "ash", "poplar", 
             "hickory", "alder", "linden", "paulownia", "cherry blossom", 
-            "magnolia", "dogwood"
+            "magnolia", "dogwood", "cherry", "peach", "apple", "pear", "plum", 
+            "apricot", "fig", "persimmon", "mulberry", "quince", "elderberry", 
+            "citrus", "lemon", "lime", "orange", "grapefruit", "tangerine", 
+            "mandarin", "almond", "pecan", "filbert", "ginkgo", "juneberry", 
+            "serviceberry", "pawpaw", "paw paw"
         ])
         
         is_tropical_plant = any(k in name_lower for k in [
@@ -269,15 +273,15 @@ Return ONLY the raw JSON string. Do not wrap in markdown backticks or enclose in
         elif is_known_tree:
             plant_type = "Fruit Tree"
             zones = "4,5,6,7,8,9"
-        elif "berry" in name_lower or "strawberry" in name_lower or "raspberry" in name_lower or "blackberry" in name_lower:
+        elif any(k in name_lower for k in ["berry", "strawberry", "raspberry", "blackberry", "blueberry", "cranberry", "gooseberry", "currant", "boysenberry", "huckleberry", "marionberry", "lingonberry"]):
             plant_type = "Berry"
             zones = "3,4,5,6,7,8"
-        elif "flower" in name_lower or "rose" in name_lower or "marigold" in name_lower or "sunflower" in name_lower or "daisy" in name_lower or "nasturtium" in name_lower:
+        elif any(k in name_lower for k in ["flower", "rose", "marigold", "sunflower", "daisy", "nasturtium", "tulip", "daffodil", "dahlia", "peony", "lavender", "echinacea", "zinnia", "cosmos", "petunia", "pansy", "lilac"]):
             plant_type = "Flower"
-        elif "herb" in name_lower or "basil" in name_lower or "mint" in name_lower or "thyme" in name_lower or "oregano" in name_lower or "parsley" in name_lower or "sage" in name_lower or "rosemary" in name_lower:
+        elif any(k in name_lower for k in ["herb", "basil", "mint", "thyme", "oregano", "parsley", "sage", "rosemary", "cilantro", "coriander", "dill", "chives", "tarragon", "marjoram", "lavender", "chamomile", "fennel", "lemon verbena"]):
             plant_type = "Herb"
             sun = "Full Sun, Partial Shade"
-        elif "grass" in name_lower or "clover" in name_lower or "goldenrod" in name_lower or "milkweed" in name_lower:
+        elif any(k in name_lower for k in ["grass", "clover", "goldenrod", "milkweed", "native", "fern", "moss", "sedge", "rush", "wildflower"]):
             plant_type = "Native"
             zones = "3,4,5,6,7,8,9"
 

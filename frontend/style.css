@@ -2243,20 +2243,25 @@ input:focus, select:focus {
 
 /* Garden Design Flowcard Styles */
 .garden-design-flow-card {
-    padding: 20px !important;
+    padding: 14px !important;
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 24px;
+    gap: 14px;
 }
 
 .flow-step {
     background: rgba(255, 255, 255, 0.015);
     border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: var(--radius-md);
-    padding: 16px !important;
+    padding: 12px 14px !important;
     min-width: 0; /* Prevents overflow of grid columns */
     transition: all 0.25s ease-in-out;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.flow-step.dropdown-open {
+    position: relative;
+    z-index: 1000 !important;
 }
 
 .flow-step:hover {
@@ -2471,8 +2476,38 @@ input:focus, select:focus {
     opacity: 0.25 !important;
     cursor: not-allowed;
 }
+/* Side-by-side Desktop Layout */
+@media (min-width: 1200px) {
+    .content-body {
+        padding: 16px 24px !important;
+    }
+    .design-desktop-layout {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 16px;
+        align-items: start;
+    }
+    .design-desktop-layout .garden-design-flow-card {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        padding: 10px !important;
+    }
+    .design-desktop-layout .flow-step {
+        padding: 10px !important;
+    }
+    .design-desktop-layout .flow-step.step-3 {
+        grid-column: span 1 !important;
+    }
+    .design-desktop-layout .flow-action-row {
+        grid-column: span 1 !important;
+        padding-top: 10px !important;
+    }
+}
 
-
-
-
-
+@media (max-width: 1199.98px) {
+    .design-desktop-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+}

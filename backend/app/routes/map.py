@@ -115,3 +115,23 @@ def get_map_tile(z: int, x: int, y: int):
         return Response(content=tile_data, media_type="image/jpeg")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Tile service unavailable: {str(e)}")
+
+@router.get("/map/static")
+def get_static_map(bbox: str, width: int, height: int):
+    # bbox format: "minLng,minLat,maxLng,maxLat"
+    settings = get_secret_keys()
+    provider = settings.get("map_provider", "osm")
+    
+    if provider == "mapbox" and settings.get("mapbox_token"):
+        token = settings.get("mapbox_token")
+        url = f"https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/[{bbox}]/{width}x{height}?access_token={token}"
+    else:
+        url = f"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox={bbox}&bboxSR=4326&size={width},{height}&format=png&f=image"
+        
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "global-agri-mind-ai/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as response:
+            image_data = response.read()
+        return Response(content=image_data, media_type="image/png")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Static map fetch failed: {str(e)}")

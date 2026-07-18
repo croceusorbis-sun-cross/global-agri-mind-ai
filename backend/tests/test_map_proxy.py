@@ -48,5 +48,11 @@ class TestMapAndSettingsAPI(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.headers["content-type"].startswith("image/"))
 
+    def test_static_map_proxy(self):
+        # 5. Test static map export proxy fetch
+        res = self.client.get("/api/v1/map/static?bbox=-83.748,42.279,-83.740,42.282&width=400&height=300")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.headers["content-type"].startswith("image/"))
+
 if __name__ == "__main__":
     unittest.main()
