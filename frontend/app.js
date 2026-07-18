@@ -3395,7 +3395,19 @@ function renderLayoutGrid(width, height) {
             // Set static satellite image backdrop if tracing boundaries exist
             if (activePolygons && activePolygons.length > 0 && gardenCenterLatLng) {
                 const bbox = getEnclosingBBox(activePolygons);
-                const textureUrl = `/api/v1/map/static?bbox=${bbox}&width=${Math.round(cols * 25)}&height=${Math.round(rows * 25)}`;
+                let reqW = Math.round(cols * 25);
+                let reqH = Math.round(rows * 25);
+                const maxDim = 1024;
+                if (reqW > maxDim || reqH > maxDim) {
+                    if (reqW > reqH) {
+                        reqH = Math.round((reqH * maxDim) / reqW);
+                        reqW = maxDim;
+                    } else {
+                        reqW = Math.round((reqW * maxDim) / reqH);
+                        reqH = maxDim;
+                    }
+                }
+                const textureUrl = `/api/v1/map/static?bbox=${bbox}&width=${reqW}&height=${reqH}`;
                 gardenGrid.style.backgroundImage = `url('${textureUrl}')`;
                 gardenGrid.style.backgroundSize = '100% 100%';
                 gardenGrid.style.backgroundRepeat = 'no-repeat';

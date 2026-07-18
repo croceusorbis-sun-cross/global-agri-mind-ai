@@ -122,6 +122,10 @@ def get_static_map(bbox: str, width: int, height: int):
     settings = get_secret_keys()
     provider = settings.get("map_provider", "osm")
     
+    # Esri export service size limit is 2048. We clamp coordinates to 2048 max.
+    width = min(2048, max(64, width))
+    height = min(2048, max(64, height))
+    
     if provider == "mapbox" and settings.get("mapbox_token"):
         token = settings.get("mapbox_token")
         url = f"https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/[{bbox}]/{width}x{height}?access_token={token}"
